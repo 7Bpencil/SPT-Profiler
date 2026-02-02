@@ -3,7 +3,7 @@ using HarmonyLib;
 using SPT.Reflection.Patching;
 using System.Reflection;
 
-namespace SPTClientModExamples.ExamplePatches
+namespace NonPipScopes.ExamplePatches
 {
     internal class SimplePatch : ModulePatch // all patches must inherit ModulePatch
     {
