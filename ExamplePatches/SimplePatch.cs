@@ -11,6 +11,7 @@ using System.Reflection;
 using Comfort.Common;
 using UnityEngine;
 using System.Text;
+using System.Collections.Generic;
 using static EFT.Player;
 
 namespace NonPipScopes.ExamplePatches {
@@ -86,6 +87,46 @@ namespace NonPipScopes.ExamplePatches {
             }
 
             return pathBuilder.ToString();
+        }
+
+        public static List<string> GetAllLayers()
+        {
+            var result = new List<string>(32);
+            for (var i = 0; i < 32; i++)
+            {
+                result.Add(LayerMask.LayerToName(i));
+            }
+            return result;
+        }
+
+        public static int AddLayer(int layerMask, int layer) {
+            return layerMask | 1 << layer;
+        }
+
+        public static int RemoveLayer(int layerMask, int layer) {
+            return layerMask & ~(1 << layer);
+        }
+
+        public static int AddLayerByName(int layerMask, string layerName, List<string> layers) {
+            var layer = layers.IndexOf(layerName);
+            return AddLayer(layerMask, layer);
+        }
+
+        public static int RemoveLayerByName(int layerMask, string layerName, List<string> layers) {
+            var layer = layers.IndexOf(layerName);
+            return RemoveLayer(layerMask, layer);
+        }
+
+        public static bool LayerMaskContains(int layerMask, int layer) {
+            return (layerMask & (1 << layer)) != 0;
+        }
+
+        public static void PrintLayerMask(int layerMask, List<string> layers) {
+            for (var i = 0; i < 32; i++) {
+                if (LayerMaskContains(layerMask, i)) {
+                    Console.WriteLine(layers[i]);
+                }
+            }
         }
     }
 
@@ -215,10 +256,12 @@ namespace NonPipScopes.ExamplePatches {
                 }
             }
 
+            var camera = CameraClass.Instance.Camera;
+
             var resultFov = baseFov;
             if (zoom != 1) {
                 var baseFovRad = baseFov * Mathf.Deg2Rad;
-                var near = CameraClass.Instance.Camera.nearClipPlane;
+                var near = camera.nearClipPlane;
                 var height = 2 * near * Mathf.Tan(baseFovRad * 0.5f);
                 var resultFovRad = 2 * Mathf.Atan2(height, 2 * zoom * near);
                 resultFov = resultFovRad * Mathf.Rad2Deg;
@@ -233,6 +276,30 @@ namespace NonPipScopes.ExamplePatches {
             CameraClass.Instance.SetFov(resultFov, 1f, !pwa.IsAiming);
             player.CalculateScaleValueByFov(CameraClass.Instance.Fov);
             player.SetCompensationScale(false);
+
+            var cullingMask = camera.cullingMask;
+            var playerLayer = LayerMask.NameToLayer("Player");
+            if (Helpers.LayerMaskContains(cullingMask, playerLayer)) {
+                camera.cullingMask = Helpers.RemoveLayer(cullingMask, playerLayer);
+
+                var playerCameraGO = new GameObject("PlayerCamera", typeof(Camera));
+                var playerCameraTrasform = playerCameraGO.transform;
+                var playerCamera = playerCameraGO.GetComponent<Camera>();
+
+                playerCamera.allowMSAA = camera.allowMSAA;
+                playerCamera.cullingMask = Helpers.AddLayer(0, playerLayer);
+                playerCamera.nearClipPlane = camera.nearClipPlane;
+                playerCamera.fieldOfView = baseFov;
+                playerCamera.depth = camera.depth + 1;
+                playerCamera.clearFlags = CameraClearFlags.Depth;
+                playerCamera.depthTextureMode = camera.depthTextureMode;
+                playerCamera.eventMask = camera.eventMask;
+
+                playerCameraTrasform.SetParent(camera.transform);
+                playerCameraTrasform.localPosition = Vector3.zero;
+                playerCameraTrasform.localRotation = Quaternion.identity;
+            }
         }
+
     }
 }
