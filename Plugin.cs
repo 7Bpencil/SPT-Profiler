@@ -2,6 +2,7 @@
 using BepInEx.Logging;
 using System.IO;
 using System.Reflection;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
 using NonPipScopes.ExamplePatches;
@@ -13,6 +14,7 @@ namespace NonPipScopes {
 
         public FovManager FovManager;
     	public Shader DepthOnlyShader;
+		public Coroutine ChangeFovCoroutine;
 
         private void Awake() {
             Instance = this;
@@ -32,5 +34,31 @@ namespace NonPipScopes {
         private void Update() {
             FovManager.Run();
         }
+
+        public void ChangeFov(Camera camera, float targetFov, float time) {
+            if (ChangeFovCoroutine != null) {
+                StopCoroutine(ChangeFovCoroutine);
+            }
+            ChangeFovCoroutine = StartCoroutine(method_5(camera, targetFov, time));
+        }
+
+        // Same tweening bsg uses for main camera
+    	public IEnumerator method_5(Camera camera, float targetFov, float time)
+    	{
+    		float timeLeft = 1f;
+    		while (timeLeft > 0f && camera)
+    		{
+    			camera.fieldOfView = Mathf.Lerp(targetFov, camera.fieldOfView, timeLeft);
+    			timeLeft -= Time.deltaTime / time;
+    			yield return null;
+    		}
+    		if (camera)
+    		{
+    			camera.fieldOfView = targetFov;
+    		}
+            ChangeFovCoroutine = null;
+    		yield break;
+    	}
+
     }
 }

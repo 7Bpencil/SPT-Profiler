@@ -7,6 +7,7 @@ using EFT.UI.Settings;
 using HarmonyLib;
 using SPT.Reflection.Patching;
 using System;
+using System.Collections;
 using System.Reflection;
 using Comfort.Common;
 using UnityEngine;
@@ -273,31 +274,41 @@ namespace NonPipScopes.ExamplePatches {
                 ResultFOV = resultFov,
             });
 
-            CameraClass.Instance.SetFov(resultFov, 1f, !pwa.IsAiming);
+            CameraClass.Instance.SetFov(baseFov, 1f, !pwa.IsAiming);
             player.CalculateScaleValueByFov(CameraClass.Instance.Fov);
             player.SetCompensationScale(false);
 
             var cullingMask = camera.cullingMask;
             var playerLayer = LayerMask.NameToLayer("Player");
-            if (Helpers.LayerMaskContains(cullingMask, playerLayer)) {
-                camera.cullingMask = Helpers.RemoveLayer(cullingMask, playerLayer);
+            var onlyPlayerLayerMask = Helpers.AddLayer(0, playerLayer);
+            var worldCameraName = "WorldCamera";
 
-                var playerCameraGO = new GameObject("PlayerCamera", typeof(Camera));
-                var playerCameraTrasform = playerCameraGO.transform;
-                var playerCamera = playerCameraGO.GetComponent<Camera>();
+            if (cullingMask != onlyPlayerLayerMask) {
+                var clearFlags = camera.clearFlags;
 
-                playerCamera.allowMSAA = camera.allowMSAA;
-                playerCamera.cullingMask = Helpers.AddLayer(0, playerLayer);
-                playerCamera.nearClipPlane = camera.nearClipPlane;
-                playerCamera.fieldOfView = baseFov;
-                playerCamera.depth = camera.depth + 1;
-                playerCamera.clearFlags = CameraClearFlags.Depth;
-                playerCamera.depthTextureMode = camera.depthTextureMode;
-                playerCamera.eventMask = camera.eventMask;
+                camera.cullingMask = onlyPlayerLayerMask;
+                camera.clearFlags = CameraClearFlags.Depth;
 
-                playerCameraTrasform.SetParent(camera.transform);
-                playerCameraTrasform.localPosition = Vector3.zero;
-                playerCameraTrasform.localRotation = Quaternion.identity;
+                var worldCameraGO = new GameObject(worldCameraName, typeof(Camera));
+
+                var worldCamera = worldCameraGO.GetComponent<Camera>();
+                worldCamera.allowMSAA = camera.allowMSAA;
+                worldCamera.cullingMask = Helpers.RemoveLayer(cullingMask, playerLayer);
+                worldCamera.nearClipPlane = camera.nearClipPlane;
+                worldCamera.fieldOfView = resultFov;
+                worldCamera.depth = camera.depth - 1;
+                worldCamera.clearFlags = clearFlags;
+                worldCamera.depthTextureMode = camera.depthTextureMode;
+                worldCamera.eventMask = camera.eventMask;
+
+                var worldCameraTrasform = worldCameraGO.transform;
+                worldCameraTrasform.SetParent(camera.transform);
+                worldCameraTrasform.localPosition = Vector3.zero;
+                worldCameraTrasform.localRotation = Quaternion.identity;
+            } else {
+                var worldCameraGO = camera.transform.FindChild(worldCameraName);
+                var worldCamera = worldCameraGO.GetComponent<Camera>();
+                Plugin.Instance.ChangeFov(worldCamera, resultFov, 1);
             }
         }
 

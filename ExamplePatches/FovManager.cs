@@ -4,6 +4,7 @@ using EFT.Animations;
 using EFT.CameraControl;
 using EFT.UI;
 using EFT.UI.Settings;
+using System.Collections;
 
 namespace NonPipScopes.ExamplePatches {
 	public struct FovData {
