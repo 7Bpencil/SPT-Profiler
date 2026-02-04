@@ -1,22 +1,36 @@
 ﻿using BepInEx;
 using BepInEx.Logging;
+using System.IO;
+using System.Reflection;
+using UnityEngine;
+using UnityEngine.Rendering;
+using NonPipScopes.ExamplePatches;
 
-namespace NonPipScopes
-{
+namespace NonPipScopes {
     [BepInPlugin("7Bpencil.NonPipScopes", "NonPipScopes", "1.0.0")]
-    public class Plugin : BaseUnityPlugin
-    {
-        public static ManualLogSource LogSource;
+    public class Plugin : BaseUnityPlugin {
+        public static Plugin Instance;
 
-        private void Awake()
-        {
-            // save the Logger to public static field so we can use it elsewhere in the project
-            LogSource = Logger;
-            LogSource.LogInfo("NonPipScopes!");
+        public FovManager FovManager;
+    	public Shader DepthOnlyShader;
 
-            // uncomment line(s) below to enable desired example patch, then press F6 to build the project
-            // if this solution is properly placed in a YourSPTInstall/Development folder, the compiled plugin will automatically be copied into YourSPTInstall/BepInEx/plugins
-            // new SimplePatch().Enable();
+        private void Awake() {
+            Instance = this;
+            FovManager = new FovManager();
+
+            var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            var assetDirPath = Path.Combine(assemblyDir, "assets");
+            var bundleDirPath = Path.Combine(assetDirPath, "bundles");
+            var bundlePath = Path.Combine(bundleDirPath, "non_pip_scopes.bundle");
+            var bundle = AssetBundle.LoadFromFile(bundlePath);
+            DepthOnlyShader = bundle.LoadAsset<Shader>("Assets/NonPipScopes/Shaders/DepthOnly.shader");
+
+            new Patch_Player_CalculateScaleValueByFov().Enable();
+            new Patch_PwaWeaponParamsPatch().Enable();
+        }
+
+        private void Update() {
+            FovManager.Run();
         }
     }
 }

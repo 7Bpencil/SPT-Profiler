@@ -1,53 +1,238 @@
 ﻿using EFT;
+using EFT.InventoryLogic;
+using EFT.Animations;
+using EFT.CameraControl;
+using EFT.UI;
+using EFT.UI.Settings;
 using HarmonyLib;
 using SPT.Reflection.Patching;
+using System;
 using System.Reflection;
+using Comfort.Common;
+using UnityEngine;
+using System.Text;
+using static EFT.Player;
 
-namespace NonPipScopes.ExamplePatches
-{
-    internal class SimplePatch : ModulePatch // all patches must inherit ModulePatch
-    {
-        protected override MethodBase GetTargetMethod()
-        {
-            // one way methods can be patched is by targeting both their class name and the name of the method itself
-            // the example in this patch is the Jump() method in the Player class
-            return AccessTools.Method(typeof(Player), nameof(Player.Jump));
+namespace NonPipScopes.ExamplePatches {
+    public struct PlayerStatus {
+        public Option<Player> PlayerOption;
+        public bool IsWeaponReady;
+        public bool IsInHideout;
+    }
+
+    public static class Helpers {
+        public static string CompactCollimator = "55818acf4bdc2dde698b456b";
+        public static string Collimator = "55818ad54bdc2ddc698b4569";
+        public static string AssaultScope = "55818add4bdc2d5b648b456f";
+        public static string OpticScope = "55818ae44bdc2dde698b456c";
+        public static string IronSight = "55818ac54bdc2d5b648b456e";
+        public static string SpecialScope = "55818aeb4bdc2ddc698b456a";
+        public static string[] Scopes = new string[] { CompactCollimator, Collimator, AssaultScope, OpticScope, IronSight, SpecialScope };
+
+        public static bool IsScope(Mod mod) {
+            foreach (string scopeTypeId in Scopes) {
+                if (mod.GetType() == TemplateIdToObjectMappingsClass.TypeTable[scopeTypeId]) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
-        public static int MaxJumps = 3;
-        public static int CompletedJumps = 0;
+        public static PlayerStatus GetPlayerStatus() {
+            var gameWorld = Singleton<GameWorld>.Instance;
+            if (!gameWorld) {
+                return new PlayerStatus() {
+                    PlayerOption = default,
+                    IsWeaponReady = false,
+                    IsInHideout = false,
+                };
+            }
+
+            var player = gameWorld.MainPlayer;
+            if (!player) {
+                return new PlayerStatus() {
+                    PlayerOption = default,
+                    IsWeaponReady = false,
+                    IsInHideout = false,
+                };
+            }
+
+            return new PlayerStatus() {
+                PlayerOption = new Option<Player>(player),
+                IsWeaponReady = player.HandsController && player.HandsController.Item != null && player.HandsController.Item is Weapon,
+                IsInHideout = player is HideoutPlayer,
+            };
+        }
+
+        public static string GetGameObjectPath(GameObject obj)
+        {
+            StringBuilder pathBuilder = new StringBuilder();
+            Transform current = obj.transform;
+
+            while (current)
+            {
+                if (pathBuilder.Length == 0)
+                {
+                    pathBuilder.Append(current.name);
+                }
+                else
+                {
+                    pathBuilder.Append("/");
+                    pathBuilder.Append(current.name);
+                }
+
+                current = current.parent;
+            }
+
+            return pathBuilder.ToString();
+        }
+    }
+
+    // changes "HUD FOV", or how the player model is rendered
+    public class Patch_Player_CalculateScaleValueByFov : ModulePatch
+    {
+        private static FieldInfo _ribcageScaleCompensated;
+
+        protected override MethodBase GetTargetMethod()
+        {
+            _ribcageScaleCompensated = AccessTools.Field(typeof(Player), "_ribcageScaleCompensated");
+            return typeof(Player).GetMethod("CalculateScaleValueByFov");
+        }
 
         [PatchPrefix]
-        static bool Prefix()
+        public static bool Prefix(Player __instance, ref float fov)
         {
-            // code in Prefix() method will run BEFORE original code is executed.
-            // if 'true' is returned, the original code will still run.
-            // if 'false' is returned, the original code will be skipped.
+            var scale = 1f;
 
-            if (CompletedJumps < MaxJumps)
-            {
-                CompletedJumps++;
-                int remainingJumps = MaxJumps - CompletedJumps;
-
-                // we are using that LogSource variable we set up in the Plugin.cs file.
-                Plugin.LogSource.LogWarning($"You jumped! You have {remainingJumps} left!");
-
-                return true; // return true to run the original code and jump!
+            var fovManager = Plugin.Instance.FovManager;
+            if (fovManager.FovDataOption.Some(out var fovData) && fovData.Zoom != 1f) {
+                // scale = fovData.Zoom;
             }
-            else
-            {
-                Plugin.LogSource.LogError("You have no jumps left!");
 
-                return false; // we are out of jumps, so we return false, preventing the original jump code from running.
-            }
+            _ribcageScaleCompensated.SetValue(__instance, scale);
+
+            return false;
+        }
+    }
+
+    // reset camera zoom on weapon change and scope switch
+    public class Patch_PwaWeaponParamsPatch : ModulePatch
+    {
+        private static FieldInfo _playerField;
+        private static FieldInfo _fcField;
+
+        protected override MethodBase GetTargetMethod()
+        {
+            _playerField = AccessTools.Field(typeof(FirearmController), "_player");
+            _fcField = AccessTools.Field(typeof(ProceduralWeaponAnimation), "_firearmController");
+            return typeof(EFT.Animations.ProceduralWeaponAnimation).GetMethod("method_23", BindingFlags.Instance | BindingFlags.Public);
         }
 
         [PatchPostfix]
-        static void Postfix()
+        private static void PatchPostfix(ref EFT.Animations.ProceduralWeaponAnimation __instance)
         {
-            // code in Postfix() method runs AFTER the original code is executed
+            var firearmController = (FirearmController)_fcField.GetValue(__instance);
+            if (!firearmController) {
+                return;
+            }
+
+            var player = (Player)_playerField.GetValue(firearmController);
+            if (player && player.IsYourPlayer)
+            {
+                ChangeMainCamFOV(player);
+            }
         }
 
-        // uncomment the 'new SimplePatch().Enable();' line in your Plugin.cs script to enable this patch.
+        public static void ChangeMainCamFOV(Player player)
+        {
+            var fovManager = Plugin.Instance.FovManager;
+
+            var pwa = player.ProceduralWeaponAnimation;
+            var firearmController = player.HandsController as FirearmController;
+
+            float baseFov = pwa.Single_2;
+            float zoom = 1f;
+
+            if (firearmController
+                && pwa.PointOfView == EPointOfView.FirstPerson
+                && !pwa.Sprint
+                && pwa.IsAiming)
+            {
+                var sight = pwa.CurrentAimingMod;
+                var data = sight.AdjustableOpticData;
+                var scopeIndex = sight.SelectedScope;
+                var scopeModeIndex = sight.SelectedScopeMode;
+
+                if (data is CollimatorTemplateClass) {
+                    Logger.LogWarning($"CollimatorTemplateClass");
+                }
+                if (data is CompactCollimatorTemplateClass) {
+                    Logger.LogWarning($"CompactCollimator");
+                }
+                if (data is OpticScopeTemplateClass opticScope) {
+                    // var zooms = opticScope.Zooms[scopeIndex];
+                    // zoom = zooms[scopeModeIndex];
+                    Logger.LogWarning($"OpticScope");
+                }
+                if (data is AssaultScopeTemplateClass assaultScope) {
+                    var zooms = assaultScope.Zooms[scopeIndex];
+                    zoom = zooms[scopeModeIndex];
+
+                    // we set lens and backLens materials to depth only shader,
+                    // and render them before other scope meshes,
+                    // this way we clip out inner mesh of the scope from view
+                    var scope = pwa.CurrentScope.ScopePrefabCache;
+                    var scopeMainRenderQueue = 5000;
+                    var scopeLensRenderQueue = scopeMainRenderQueue - 1;
+
+                    // TODO maybe can compare by shaders directly, not by names?
+                    // meshRenderer.material.shader != depthOnlyShader
+                    var depthOnlyShader = Plugin.Instance.DepthOnlyShader;
+                    foreach (var meshRenderer in scope.GetComponentsInChildren<MeshRenderer>()) {
+                        if (meshRenderer.material.shader.name != depthOnlyShader.name) {
+                            meshRenderer.material.renderQueue = scopeMainRenderQueue;
+                        }
+                    }
+
+                    var opticSight = scope.CurrentModOpticSight;
+                    var opticSightLensRenderer = opticSight.LensRenderer;
+                    if (opticSightLensRenderer.material.shader.name != depthOnlyShader.name) {
+                        opticSightLensRenderer.material = new Material(depthOnlyShader);
+                        opticSightLensRenderer.material.renderQueue = scopeLensRenderQueue;
+                    }
+
+                    var backLens = opticSight.transform.FindChild("backLens");
+                    if (backLens) {
+                        var backLensRenderer = backLens.GetComponent<MeshRenderer>();
+                        if (backLensRenderer.material.shader.name != depthOnlyShader.name) {
+                            backLensRenderer.material = new Material(depthOnlyShader);
+                            backLensRenderer.material.renderQueue = scopeLensRenderQueue;
+                        }
+                    }
+
+                    Logger.LogWarning($"AssaultScope zoom: {zoom}");
+                }
+            }
+
+            var resultFov = baseFov;
+            if (zoom != 1) {
+                var baseFovRad = baseFov * Mathf.Deg2Rad;
+                var near = CameraClass.Instance.Camera.nearClipPlane;
+                var height = 2 * near * Mathf.Tan(baseFovRad * 0.5f);
+                var resultFovRad = 2 * Mathf.Atan2(height, 2 * zoom * near);
+                resultFov = resultFovRad * Mathf.Rad2Deg;
+            }
+
+            fovManager.FovDataOption = new Option<FovData>(new FovData() {
+                BaseFOV = baseFov,
+                Zoom = zoom,
+                ResultFOV = resultFov,
+            });
+
+            CameraClass.Instance.SetFov(resultFov, 1f, !pwa.IsAiming);
+            player.CalculateScaleValueByFov(CameraClass.Instance.Fov);
+            player.SetCompensationScale(false);
+        }
     }
 }
