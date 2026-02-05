@@ -15,6 +15,7 @@ namespace NonPipScopes {
         public FovManager FovManager;
     	public Shader DepthOnlyShader;
 		public Coroutine ChangeFovCoroutine;
+		public Camera WorldCamera;
 
         private void Awake() {
             Instance = this;
@@ -35,11 +36,13 @@ namespace NonPipScopes {
             FovManager.Run();
         }
 
-        public void ChangeFov(Camera camera, float targetFov, float time) {
+        public void ChangeWorldCameraFov(float targetFov, float time) {
             if (ChangeFovCoroutine != null) {
                 StopCoroutine(ChangeFovCoroutine);
             }
-            ChangeFovCoroutine = StartCoroutine(method_5(camera, targetFov, time));
+            if (WorldCamera) {
+                ChangeFovCoroutine = StartCoroutine(method_5(WorldCamera, targetFov, time));
+            }
         }
 
         // Same tweening bsg uses for main camera

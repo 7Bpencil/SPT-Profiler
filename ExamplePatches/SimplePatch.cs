@@ -281,7 +281,6 @@ namespace NonPipScopes.ExamplePatches {
             var cullingMask = camera.cullingMask;
             var playerLayer = LayerMask.NameToLayer("Player");
             var onlyPlayerLayerMask = Helpers.AddLayer(0, playerLayer);
-            var worldCameraName = "WorldCamera";
 
             if (cullingMask != onlyPlayerLayerMask) {
                 var clearFlags = camera.clearFlags;
@@ -289,13 +288,13 @@ namespace NonPipScopes.ExamplePatches {
                 camera.cullingMask = onlyPlayerLayerMask;
                 camera.clearFlags = CameraClearFlags.Depth;
 
-                var worldCameraGO = new GameObject(worldCameraName, typeof(Camera));
+                var worldCameraGO = new GameObject("WorldCamera", typeof(Camera));
 
                 var worldCamera = worldCameraGO.GetComponent<Camera>();
                 worldCamera.allowMSAA = camera.allowMSAA;
                 worldCamera.cullingMask = Helpers.RemoveLayer(cullingMask, playerLayer);
                 worldCamera.nearClipPlane = camera.nearClipPlane;
-                worldCamera.fieldOfView = resultFov;
+                worldCamera.fieldOfView = baseFov;
                 worldCamera.depth = camera.depth - 1;
                 worldCamera.clearFlags = clearFlags;
                 worldCamera.depthTextureMode = camera.depthTextureMode;
@@ -305,11 +304,11 @@ namespace NonPipScopes.ExamplePatches {
                 worldCameraTrasform.SetParent(camera.transform);
                 worldCameraTrasform.localPosition = Vector3.zero;
                 worldCameraTrasform.localRotation = Quaternion.identity;
-            } else {
-                var worldCameraGO = camera.transform.FindChild(worldCameraName);
-                var worldCamera = worldCameraGO.GetComponent<Camera>();
-                Plugin.Instance.ChangeFov(worldCamera, resultFov, 1);
+
+                Plugin.Instance.WorldCamera = worldCamera;
             }
+
+            Plugin.Instance.ChangeWorldCameraFov(resultFov, 1);
         }
 
     }
