@@ -231,7 +231,8 @@ namespace NonPipScopes.ExamplePatches {
                     // TODO maybe can compare by shaders directly, not by names?
                     // meshRenderer.material.shader != depthOnlyShader
                     var depthOnlyShader = Plugin.Instance.DepthOnlyShader;
-                    foreach (var meshRenderer in scope.GetComponentsInChildren<MeshRenderer>()) {
+                    var weaponRoot = firearmController.ControllerGameObject;
+                    foreach (var meshRenderer in weaponRoot.GetComponentsInChildren<MeshRenderer>()) {
                         if (meshRenderer.material.shader.name != depthOnlyShader.name) {
                             meshRenderer.material.renderQueue = scopeMainRenderQueue;
                         }
