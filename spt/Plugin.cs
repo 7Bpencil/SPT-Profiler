@@ -22,9 +22,7 @@ namespace NonPipScopes {
             FovManager = new FovManager();
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            var assetDirPath = Path.Combine(assemblyDir, "assets");
-            var bundleDirPath = Path.Combine(assetDirPath, "bundles");
-            var bundlePath = Path.Combine(bundleDirPath, "non_pip_scopes.bundle");
+			var bundlePath = Path.Combine(assemblyDir, "assets", "bundles", "non_pip_scopes");
             var bundle = AssetBundle.LoadFromFile(bundlePath);
             DepthOnlyShader = bundle.LoadAsset<Shader>("Assets/NonPipScopes/Shaders/DepthOnly.shader");
 
