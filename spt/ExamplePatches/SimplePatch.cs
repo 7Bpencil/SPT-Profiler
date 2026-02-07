@@ -237,6 +237,11 @@ namespace NonPipScopes.ExamplePatches {
                             meshRenderer.material.renderQueue = scopeMainRenderQueue;
                         }
                     }
+                    var opticCameraManager = CameraClass.Instance.OpticCameraManager;
+                    var opticCamera = opticCameraManager.Camera;
+                    opticCamera.cullingMask = 0;
+                    opticCamera.clearFlags = CameraClearFlags.SolidColor;
+                    opticCamera.backgroundColor = Color.clear;
 
                     var opticSight = scope.CurrentModOpticSight;
                     var opticSightLensRenderer = opticSight.LensRenderer;
@@ -311,6 +316,32 @@ namespace NonPipScopes.ExamplePatches {
 
             Plugin.Instance.ChangeWorldCameraFov(resultFov, 1);
         }
+    }
 
+    public class Patch_OpticSight_LensFade : ModulePatch
+    {
+        protected override MethodBase GetTargetMethod()
+        {
+            return typeof(OpticSight).GetMethod("LensFade", BindingFlags.Instance | BindingFlags.Public);
+        }
+
+        [PatchPrefix]
+        private static bool PatchPrefix(ref OpticSight __instance, bool isHide = true)
+        {
+            var lensRenderer = __instance.LensRenderer;
+            var opticSightShader = Plugin.Instance.OpticSightShader;
+            if (lensRenderer.material.shader.name != opticSightShader.name)
+            {
+                // I am pretty sure that's the earliest time LensRenderer is used, so we swap its material here
+
+                Logger.LogWarning("Patch_OpticSight_LensFade");
+                var newMaterial = new Material(opticSightShader);
+                newMaterial.CopyPropertiesFromMaterial(lensRenderer.material);
+
+                lensRenderer.material = newMaterial;
+            }
+
+            return true;
+        }
     }
 }

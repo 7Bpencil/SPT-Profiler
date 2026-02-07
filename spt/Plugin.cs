@@ -14,6 +14,7 @@ namespace NonPipScopes {
 
         public FovManager FovManager;
     	public Shader DepthOnlyShader;
+    	public Shader OpticSightShader;
 		public Coroutine ChangeFovCoroutine;
 		public Camera WorldCamera;
 
@@ -25,9 +26,11 @@ namespace NonPipScopes {
 			var bundlePath = Path.Combine(assemblyDir, "assets", "bundles", "non_pip_scopes");
             var bundle = AssetBundle.LoadFromFile(bundlePath);
             DepthOnlyShader = bundle.LoadAsset<Shader>("Assets/NonPipScopes/Shaders/DepthOnly.shader");
+            OpticSightShader = bundle.LoadAsset<Shader>("Assets/NonPipScopes/ShadersDecompiled/OpticSight.shader");
 
             new Patch_Player_CalculateScaleValueByFov().Enable();
             new Patch_PwaWeaponParamsPatch().Enable();
+			new Patch_OpticSight_LensFade().Enable();
         }
 
         private void Update() {

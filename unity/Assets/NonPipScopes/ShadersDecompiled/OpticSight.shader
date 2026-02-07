@@ -1,4 +1,4 @@
-Shader "CW FX/OpticSight" {
+Shader "NonPipScopes/OpticSight" {
     Properties {
         _MarkTex ("Mark Texture", 2D) = "black" {}
         _MaskTex ("Mask Texture(A)", 2D) = "white" {}
