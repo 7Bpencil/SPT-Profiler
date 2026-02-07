@@ -2,16 +2,17 @@ Shader "NonPipScopes/DepthOnly"
 {
     SubShader
     {
-        Tags { "Queue" = "Geometry" }
+		Tags { "RenderType" = "Opaque" "Queue" = "Background" }
         Pass
         {
-            ZWrite On
+			ZWrite On
+			ZTest Always
+			Cull Off
             ColorMask 0
 
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-
             #include "UnityCG.cginc"
 
             struct appdata

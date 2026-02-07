@@ -258,7 +258,6 @@ namespace NonPipScopes.ExamplePatches {
                         var backLensRenderer = backLens.GetComponent<MeshRenderer>();
                         if (backLensRenderer.material.shader.name != depthOnlyShader.name) {
                             backLensRenderer.material = new Material(depthOnlyShader);
-                            backLensRenderer.material.renderQueue = lensRenderQueue;
                         }
                     }
 
