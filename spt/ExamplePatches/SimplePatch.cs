@@ -226,8 +226,8 @@ namespace NonPipScopes.ExamplePatches {
                     // and render them before other scope meshes,
                     // this way we clip out inner mesh of the scope from view
                     var scope = pwa.CurrentScope.ScopePrefabCache;
-                    var scopeMainRenderQueue = 5000;
-                    var scopeLensRenderQueue = scopeMainRenderQueue - 1;
+                    var bodyRenderQueue = 5000;
+                    var lensRenderQueue = bodyRenderQueue - 1;
 
                     // TODO maybe can compare by shaders directly, not by names?
                     // meshRenderer.material.shader != depthOnlyShader
@@ -235,7 +235,14 @@ namespace NonPipScopes.ExamplePatches {
                     var weaponRoot = firearmController.ControllerGameObject;
                     foreach (var meshRenderer in weaponRoot.GetComponentsInChildren<MeshRenderer>()) {
                         if (meshRenderer.material.shader.name != depthOnlyShader.name) {
-                            meshRenderer.material.renderQueue = scopeMainRenderQueue;
+                            meshRenderer.material.renderQueue = bodyRenderQueue;
+                        }
+                    }
+
+                    var handsRoot = player.PlayerBody.BodySkins[EBodyModelPart.Hands];
+                    foreach (var skinnedMeshRenderer in handsRoot.GetComponentsInChildren<SkinnedMeshRenderer>()) {
+                        if (skinnedMeshRenderer.material.shader.name != depthOnlyShader.name) {
+                            skinnedMeshRenderer.material.renderQueue = bodyRenderQueue;
                         }
                     }
 
@@ -251,7 +258,7 @@ namespace NonPipScopes.ExamplePatches {
                         var backLensRenderer = backLens.GetComponent<MeshRenderer>();
                         if (backLensRenderer.material.shader.name != depthOnlyShader.name) {
                             backLensRenderer.material = new Material(depthOnlyShader);
-                            backLensRenderer.material.renderQueue = scopeLensRenderQueue;
+                            backLensRenderer.material.renderQueue = lensRenderQueue;
                         }
                     }
 
