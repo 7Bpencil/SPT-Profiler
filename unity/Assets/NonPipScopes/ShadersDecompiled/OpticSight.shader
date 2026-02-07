@@ -517,7 +517,7 @@ Shader "NonPipScopes/OpticSight" {
 
         }
         Pass {
-            Name "D"
+            Name "ReticleFade"
             Blend DstColor Zero, DstColor Zero
             ColorMask RGB
             ZClip On
@@ -741,7 +741,7 @@ Shader "NonPipScopes/OpticSight" {
 
         }
         Pass {
-            Name "E"
+            Name "ReticleMark"
             Blend SrcAlpha OneMinusSrcAlpha, SrcAlpha OneMinusSrcAlpha
             ColorMask RGB
             ZClip On
