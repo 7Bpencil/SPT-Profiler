@@ -11,6 +11,7 @@ using System.Collections;
 using System.Reflection;
 using Comfort.Common;
 using UnityEngine;
+using UnityEngine.Rendering;
 using System.Text;
 using System.Collections.Generic;
 using static EFT.Player;
@@ -237,6 +238,7 @@ namespace NonPipScopes.ExamplePatches {
                             meshRenderer.material.renderQueue = scopeMainRenderQueue;
                         }
                     }
+
                     var opticCameraManager = CameraClass.Instance.OpticCameraManager;
                     var opticCamera = opticCameraManager.Camera;
                     opticCamera.cullingMask = 0;
@@ -244,12 +246,6 @@ namespace NonPipScopes.ExamplePatches {
                     opticCamera.backgroundColor = Color.clear;
 
                     var opticSight = scope.CurrentModOpticSight;
-                    var opticSightLensRenderer = opticSight.LensRenderer;
-                    if (opticSightLensRenderer.material.shader.name != depthOnlyShader.name) {
-                        opticSightLensRenderer.material = new Material(depthOnlyShader);
-                        opticSightLensRenderer.material.renderQueue = scopeLensRenderQueue;
-                    }
-
                     var backLens = opticSight.transform.FindChild("backLens");
                     if (backLens) {
                         var backLensRenderer = backLens.GetComponent<MeshRenderer>();
