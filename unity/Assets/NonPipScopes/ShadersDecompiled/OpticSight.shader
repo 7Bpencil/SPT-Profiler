@@ -15,7 +15,7 @@ Shader "CW FX/OpticSight" {
             "QUEUE"="Transparent+100"
         }
         Pass {
-            Name ""
+            Name "A"
             ColorMask 0
             ZClip On
             ZTest Always
@@ -119,7 +119,7 @@ Shader "CW FX/OpticSight" {
 
         }
         Pass {
-            Name ""
+            Name "B"
             ColorMask A
             ZClip On
             ZWrite Off
@@ -291,7 +291,7 @@ Shader "CW FX/OpticSight" {
 
         }
         Pass {
-            Name ""
+            Name "C"
             ColorMask RGB
             ZClip On
             ZTest Always
@@ -517,7 +517,7 @@ Shader "CW FX/OpticSight" {
 
         }
         Pass {
-            Name ""
+            Name "D"
             Blend DstColor Zero, DstColor Zero
             ColorMask RGB
             ZClip On
@@ -741,7 +741,7 @@ Shader "CW FX/OpticSight" {
 
         }
         Pass {
-            Name ""
+            Name "E"
             Blend SrcAlpha OneMinusSrcAlpha, SrcAlpha OneMinusSrcAlpha
             ColorMask RGB
             ZClip On
