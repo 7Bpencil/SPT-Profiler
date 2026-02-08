@@ -12,6 +12,7 @@ namespace NonPipScopes {
     public class Plugin : BaseUnityPlugin {
         public static Plugin Instance;
 
+		public ManualLogSource LoggerInstance;
         public FovManager FovManager;
     	public Shader DepthOnlyShader;
     	public Shader OpticSightShader;
@@ -20,6 +21,8 @@ namespace NonPipScopes {
 
         private void Awake() {
             Instance = this;
+
+			LoggerInstance = Logger;
             FovManager = new FovManager();
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);

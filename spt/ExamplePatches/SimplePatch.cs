@@ -190,6 +190,7 @@ namespace NonPipScopes.ExamplePatches {
         public static void ChangeMainCamFOV(Player player)
         {
             var fovManager = Plugin.Instance.FovManager;
+            var camera = CameraClass.Instance.Camera;
 
             var pwa = player.ProceduralWeaponAnimation;
             var firearmController = player.HandsController as FirearmController;
@@ -222,50 +223,25 @@ namespace NonPipScopes.ExamplePatches {
                     var zooms = assaultScope.Zooms[scopeIndex];
                     zoom = zooms[scopeModeIndex];
 
-                    // we set lens and backLens materials to depth only shader,
-                    // and render them before other scope meshes,
-                    // this way we clip out inner mesh of the scope from view
+                    // var weaponRoot = firearmController.ControllerGameObject;
+                    // var handsRoot = player.PlayerBody.BodySkins[EBodyModelPart.Hands];
+
+                    var opticCamera = CameraClass.Instance.OpticCameraManager.Camera;
+                    opticCamera.gameObject.SetActive(false);
+
                     var scope = pwa.CurrentScope.ScopePrefabCache;
-                    var bodyRenderQueue = 5000;
-                    var lensRenderQueue = bodyRenderQueue - 1;
-
-                    // TODO maybe can compare by shaders directly, not by names?
-                    // meshRenderer.material.shader != depthOnlyShader
-                    var depthOnlyShader = Plugin.Instance.DepthOnlyShader;
-                    var weaponRoot = firearmController.ControllerGameObject;
-                    foreach (var meshRenderer in weaponRoot.GetComponentsInChildren<MeshRenderer>()) {
-                        if (meshRenderer.material.shader.name != depthOnlyShader.name) {
-                            meshRenderer.material.renderQueue = bodyRenderQueue;
-                        }
-                    }
-
-                    var handsRoot = player.PlayerBody.BodySkins[EBodyModelPart.Hands];
-                    foreach (var skinnedMeshRenderer in handsRoot.GetComponentsInChildren<SkinnedMeshRenderer>()) {
-                        if (skinnedMeshRenderer.material.shader.name != depthOnlyShader.name) {
-                            skinnedMeshRenderer.material.renderQueue = bodyRenderQueue;
-                        }
-                    }
-
-                    var opticCameraManager = CameraClass.Instance.OpticCameraManager;
-                    var opticCamera = opticCameraManager.Camera;
-                    opticCamera.cullingMask = 0;
-                    opticCamera.clearFlags = CameraClearFlags.SolidColor;
-                    opticCamera.backgroundColor = Color.clear;
-
                     var opticSight = scope.CurrentModOpticSight;
-                    var backLens = opticSight.transform.FindChild("backLens");
-                    if (backLens) {
-                        var backLensRenderer = backLens.GetComponent<MeshRenderer>();
-                        if (backLensRenderer.material.shader.name != depthOnlyShader.name) {
-                            backLensRenderer.material = new Material(depthOnlyShader);
-                        }
+                    var backLensTransform = opticSight.transform.FindChild("backLens");
+                    var backLensMaskTransform = opticSight.transform.FindChild("backLensMask");
+                    if (backLensTransform && !backLensMaskTransform) {
+                        var backLensMask = new GameObject("backLensMask", typeof(MeshFilter), typeof(MeshRenderer), typeof(BackLensMask));
+                        backLensMask.GetComponent<BackLensMask>().Init(backLensTransform);
+                        backLensTransform.gameObject.SetActive(false);
                     }
 
                     Logger.LogWarning($"AssaultScope zoom: {zoom}");
                 }
             }
-
-            var camera = CameraClass.Instance.Camera;
 
             var resultFov = baseFov;
             if (zoom != 1) {
