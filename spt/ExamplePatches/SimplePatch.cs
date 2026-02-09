@@ -270,7 +270,7 @@ namespace NonPipScopes.ExamplePatches {
                 var clearFlags = camera.clearFlags;
 
                 camera.cullingMask = onlyPlayerLayerMask;
-                camera.clearFlags = CameraClearFlags.Depth;
+                camera.clearFlags = CameraClearFlags.Nothing;
 
                 var worldCameraGO = new GameObject("WorldCamera", typeof(Camera));
 
