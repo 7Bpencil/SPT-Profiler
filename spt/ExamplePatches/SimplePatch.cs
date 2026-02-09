@@ -135,11 +135,11 @@ namespace NonPipScopes.ExamplePatches {
     // changes "HUD FOV", or how the player model is rendered
     public class Patch_Player_CalculateScaleValueByFov : ModulePatch
     {
-        private static FieldInfo _ribcageScaleCompensated;
+        private static TypedFieldInfo<Player, float> _ribcageScaleCompensated;
 
         protected override MethodBase GetTargetMethod()
         {
-            _ribcageScaleCompensated = AccessTools.Field(typeof(Player), "_ribcageScaleCompensated");
+            _ribcageScaleCompensated = new TypedFieldInfo<Player, float>("_ribcageScaleCompensated");
             return typeof(Player).GetMethod("CalculateScaleValueByFov");
         }
 
@@ -153,7 +153,7 @@ namespace NonPipScopes.ExamplePatches {
                 // scale = fovData.Zoom;
             }
 
-            _ribcageScaleCompensated.SetValue(__instance, scale);
+            _ribcageScaleCompensated.Set(__instance, scale);
 
             return false;
         }
@@ -162,25 +162,25 @@ namespace NonPipScopes.ExamplePatches {
     // reset camera zoom on weapon change and scope switch
     public class Patch_PwaWeaponParamsPatch : ModulePatch
     {
-        private static FieldInfo _playerField;
-        private static FieldInfo _fcField;
+        private static TypedFieldInfo<FirearmController, Player> _playerField;
+        private static TypedFieldInfo<ProceduralWeaponAnimation, FirearmController> _fcField;
 
         protected override MethodBase GetTargetMethod()
         {
-            _playerField = AccessTools.Field(typeof(FirearmController), "_player");
-            _fcField = AccessTools.Field(typeof(ProceduralWeaponAnimation), "_firearmController");
+            _playerField = new TypedFieldInfo<FirearmController, Player>("_player");
+            _fcField = new TypedFieldInfo<ProceduralWeaponAnimation, FirearmController>("_firearmController");
             return typeof(EFT.Animations.ProceduralWeaponAnimation).GetMethod("method_23", BindingFlags.Instance | BindingFlags.Public);
         }
 
         [PatchPostfix]
         private static void PatchPostfix(ref EFT.Animations.ProceduralWeaponAnimation __instance)
         {
-            var firearmController = (FirearmController)_fcField.GetValue(__instance);
+            var firearmController = _fcField.Get(__instance);
             if (!firearmController) {
                 return;
             }
 
-            var player = (Player)_playerField.GetValue(firearmController);
+            var player = _playerField.Get(firearmController);
             if (player && player.IsYourPlayer)
             {
                 ChangeMainCamFOV(player);
