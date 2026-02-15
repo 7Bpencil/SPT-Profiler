@@ -8,12 +8,18 @@ using UnityEngine.Rendering;
 using NonPipScopes.ExamplePatches;
 
 namespace NonPipScopes {
+	public struct FovData {
+		public float BaseFOV;
+		public float Zoom;
+		public float ResultFOV;
+	}
+
     [BepInPlugin("7Bpencil.NonPipScopes", "NonPipScopes", "1.0.0")]
     public class Plugin : BaseUnityPlugin {
         public static Plugin Instance;
 
 		public ManualLogSource LoggerInstance;
-        public FovManager FovManager;
+		public Option<FovData> FovDataOption;
     	public Shader DepthOnlyShader;
     	public Shader OpticSightShader;
 		public Coroutine ChangeFovCoroutine;
@@ -23,7 +29,6 @@ namespace NonPipScopes {
             Instance = this;
 
 			LoggerInstance = Logger;
-            FovManager = new FovManager();
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 			var bundlePath = Path.Combine(assemblyDir, "assets", "bundles", "non_pip_scopes");
@@ -32,12 +37,8 @@ namespace NonPipScopes {
             OpticSightShader = bundle.LoadAsset<Shader>("Assets/NonPipScopes/ShadersDecompiled/OpticSight.shader");
 
             new Patch_Player_CalculateScaleValueByFov().Enable();
-            new Patch_PwaWeaponParamsPatch().Enable();
+            new Patch_PWA_method_23().Enable();
 			new Patch_OpticSight_LensFade().Enable();
-        }
-
-        private void Update() {
-            FovManager.Run();
         }
 
         public void ChangeWorldCameraFov(float targetFov, float time) {

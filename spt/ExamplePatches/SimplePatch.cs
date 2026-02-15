@@ -17,57 +17,7 @@ using System.Collections.Generic;
 using static EFT.Player;
 
 namespace NonPipScopes.ExamplePatches {
-    public struct PlayerStatus {
-        public Option<Player> PlayerOption;
-        public bool IsWeaponReady;
-        public bool IsInHideout;
-    }
-
     public static class Helpers {
-        public static string CompactCollimator = "55818acf4bdc2dde698b456b";
-        public static string Collimator = "55818ad54bdc2ddc698b4569";
-        public static string AssaultScope = "55818add4bdc2d5b648b456f";
-        public static string OpticScope = "55818ae44bdc2dde698b456c";
-        public static string IronSight = "55818ac54bdc2d5b648b456e";
-        public static string SpecialScope = "55818aeb4bdc2ddc698b456a";
-        public static string[] Scopes = new string[] { CompactCollimator, Collimator, AssaultScope, OpticScope, IronSight, SpecialScope };
-
-        public static bool IsScope(Mod mod) {
-            foreach (string scopeTypeId in Scopes) {
-                if (mod.GetType() == TemplateIdToObjectMappingsClass.TypeTable[scopeTypeId]) {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        public static PlayerStatus GetPlayerStatus() {
-            var gameWorld = Singleton<GameWorld>.Instance;
-            if (!gameWorld) {
-                return new PlayerStatus() {
-                    PlayerOption = default,
-                    IsWeaponReady = false,
-                    IsInHideout = false,
-                };
-            }
-
-            var player = gameWorld.MainPlayer;
-            if (!player) {
-                return new PlayerStatus() {
-                    PlayerOption = default,
-                    IsWeaponReady = false,
-                    IsInHideout = false,
-                };
-            }
-
-            return new PlayerStatus() {
-                PlayerOption = new Option<Player>(player),
-                IsWeaponReady = player.HandsController && player.HandsController.Item != null && player.HandsController.Item is Weapon,
-                IsInHideout = player is HideoutPlayer,
-            };
-        }
-
         public static string GetGameObjectPath(GameObject obj)
         {
             StringBuilder pathBuilder = new StringBuilder();
@@ -140,7 +90,7 @@ namespace NonPipScopes.ExamplePatches {
         protected override MethodBase GetTargetMethod()
         {
             _ribcageScaleCompensated = new TypedFieldInfo<Player, float>("_ribcageScaleCompensated");
-            return typeof(Player).GetMethod("CalculateScaleValueByFov");
+            return AccessTools.Method(typeof(Player), nameof(Player.CalculateScaleValueByFov));
         }
 
         [PatchPrefix]
@@ -148,8 +98,7 @@ namespace NonPipScopes.ExamplePatches {
         {
             var scale = 1f;
 
-            var fovManager = Plugin.Instance.FovManager;
-            if (fovManager.FovDataOption.Some(out var fovData) && fovData.Zoom != 1f) {
+            if (Plugin.Instance.FovDataOption.Some(out var fovData) && fovData.Zoom != 1f) {
                 // scale = fovData.Zoom;
             }
 
@@ -160,7 +109,7 @@ namespace NonPipScopes.ExamplePatches {
     }
 
     // reset camera zoom on weapon change and scope switch
-    public class Patch_PwaWeaponParamsPatch : ModulePatch
+    public class Patch_PWA_method_23 : ModulePatch
     {
         private static TypedFieldInfo<FirearmController, Player> _playerField;
         private static TypedFieldInfo<ProceduralWeaponAnimation, FirearmController> _fcField;
@@ -169,11 +118,11 @@ namespace NonPipScopes.ExamplePatches {
         {
             _playerField = new TypedFieldInfo<FirearmController, Player>("_player");
             _fcField = new TypedFieldInfo<ProceduralWeaponAnimation, FirearmController>("_firearmController");
-            return typeof(EFT.Animations.ProceduralWeaponAnimation).GetMethod("method_23", BindingFlags.Instance | BindingFlags.Public);
+            return AccessTools.Method(typeof(ProceduralWeaponAnimation), nameof(ProceduralWeaponAnimation.method_23));
         }
 
         [PatchPostfix]
-        private static void PatchPostfix(ref EFT.Animations.ProceduralWeaponAnimation __instance)
+        private static void PatchPostfix(ProceduralWeaponAnimation __instance)
         {
             var firearmController = _fcField.Get(__instance);
             if (!firearmController) {
@@ -189,7 +138,6 @@ namespace NonPipScopes.ExamplePatches {
 
         public static void ChangeMainCamFOV(Player player)
         {
-            var fovManager = Plugin.Instance.FovManager;
             var camera = CameraClass.Instance.Camera;
 
             var pwa = player.ProceduralWeaponAnimation;
@@ -246,13 +194,11 @@ namespace NonPipScopes.ExamplePatches {
             var resultFov = baseFov;
             if (zoom != 1) {
                 var baseFovRad = baseFov * Mathf.Deg2Rad;
-                var near = camera.nearClipPlane;
-                var height = 2 * near * Mathf.Tan(baseFovRad * 0.5f);
-                var resultFovRad = 2 * Mathf.Atan2(height, 2 * zoom * near);
+                var resultFovRad = 2 * Mathf.Atan2(Mathf.Tan(baseFovRad * 0.5f), zoom);
                 resultFov = resultFovRad * Mathf.Rad2Deg;
             }
 
-            fovManager.FovDataOption = new Option<FovData>(new FovData() {
+            Plugin.Instance.FovDataOption = new Option<FovData>(new FovData() {
                 BaseFOV = baseFov,
                 Zoom = zoom,
                 ResultFOV = resultFov,
@@ -300,7 +246,7 @@ namespace NonPipScopes.ExamplePatches {
     {
         protected override MethodBase GetTargetMethod()
         {
-            return typeof(OpticSight).GetMethod("LensFade", BindingFlags.Instance | BindingFlags.Public);
+            return AccessTools.Method(typeof(OpticSight), nameof(OpticSight.LensFade));
         }
 
         [PatchPrefix]
