@@ -1,4 +1,5 @@
-﻿using BepInEx;
+﻿using Audio.SpatialSystem;
+using BepInEx;
 using BepInEx.Logging;
 using System.IO;
 using System.Reflection;
@@ -27,18 +28,18 @@ namespace NonPipScopes {
         public static Plugin Instance;
 
 		public ManualLogSource LoggerInstance;
-
 		public IProfiler[] Profilers;
-
 
         private void Awake() {
             Instance = this;
 
 			LoggerInstance = Logger;
-
 			Profilers = [
-				new Patch_GameWorld_DoWorldTick(),
-				new Patch_GameWorld_DoOtherWorldTick(),
+				new Measure_GameWorld_DoWorldTick(),
+				new Measure_GameWorld_DoOtherWorldTick(),
+				new Measure_GameWorldUnityTickListener_LateUpdate(),
+				new Measure_BetterAudio_Update(),
+				new Measure_SpatialAudioSystem_Update(),
 			];
 
 			foreach (var profiler in Profilers)
@@ -83,7 +84,9 @@ namespace NonPipScopes {
 		public double GetTimeMs();
 	}
 
-	public abstract class MethodProfiler<T> : ModulePatch, IProfiler
+	// V type arg is used to generate different classes with same T type
+	// otherwise T.Method0 and T.Method1 will share one stopwatch
+	public abstract class MethodProfiler<T, V> : ModulePatch, IProfiler
 	{
 		private readonly string _methodName;
 		private readonly string _fullName;
@@ -130,17 +133,39 @@ namespace NonPipScopes {
 		}
 	}
 
-	public class Patch_GameWorld_DoWorldTick : MethodProfiler<GameWorld>
+	public class Measure_GameWorld_DoWorldTick : MethodProfiler<GameWorld, int>
 	{
-		public Patch_GameWorld_DoWorldTick() : base(nameof(GameWorld.DoWorldTick)) { }
+		public Measure_GameWorld_DoWorldTick() : base(nameof(GameWorld.DoWorldTick)) { }
         [PatchPrefix] public static bool Prefix(GameWorld __instance, float dt) { return StartMeasure(); }
         [PatchPostfix] public static void Postfix(GameWorld __instance, float dt) { StopMeasure(); }
 	}
 
-	public class Patch_GameWorld_DoOtherWorldTick : MethodProfiler<GameWorld>
+	public class Measure_GameWorld_DoOtherWorldTick : MethodProfiler<GameWorld, bool>
 	{
-		public Patch_GameWorld_DoOtherWorldTick() : base(nameof(GameWorld.DoOtherWorldTick)) { }
+		public Measure_GameWorld_DoOtherWorldTick() : base(nameof(GameWorld.DoOtherWorldTick)) { }
         [PatchPrefix] public static bool Prefix(GameWorld __instance, float dt) { return StartMeasure(); }
         [PatchPostfix] public static void Postfix(GameWorld __instance, float dt) { StopMeasure(); }
 	}
+
+	public class Measure_GameWorldUnityTickListener_LateUpdate : MethodProfiler<GameWorldUnityTickListener, int>
+	{
+		public Measure_GameWorldUnityTickListener_LateUpdate() : base(nameof(GameWorldUnityTickListener.LateUpdate)) { }
+        [PatchPrefix] public static bool Prefix(GameWorldUnityTickListener __instance) { return StartMeasure(); }
+        [PatchPostfix] public static void Postfix(GameWorldUnityTickListener __instance) { StopMeasure(); }
+	}
+
+	public class Measure_BetterAudio_Update : MethodProfiler<BetterAudio, int>
+	{
+		public Measure_BetterAudio_Update() : base(nameof(BetterAudio.Update)) { }
+        [PatchPrefix] public static bool Prefix(BetterAudio __instance) { return StartMeasure(); }
+        [PatchPostfix] public static void Postfix(BetterAudio __instance) { StopMeasure(); }
+	}
+
+	public class Measure_SpatialAudioSystem_Update : MethodProfiler<SpatialAudioSystem, int>
+	{
+		public Measure_SpatialAudioSystem_Update() : base(nameof(SpatialAudioSystem.Update)) { }
+        [PatchPrefix] public static bool Prefix(SpatialAudioSystem __instance) { return StartMeasure(); }
+        [PatchPostfix] public static void Postfix(SpatialAudioSystem __instance) { StopMeasure(); }
+	}
+
 }
