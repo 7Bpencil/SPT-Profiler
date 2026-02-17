@@ -133,34 +133,14 @@ namespace NonPipScopes {
 	public class Patch_GameWorld_DoWorldTick : MethodProfiler<GameWorld>
 	{
 		public Patch_GameWorld_DoWorldTick() : base(nameof(GameWorld.DoWorldTick)) { }
-
-        [PatchPrefix]
-        public static bool Prefix(GameWorld __instance, float dt)
-        {
-			return StartMeasure();
-        }
-
-        [PatchPostfix]
-        public static void Postfix(GameWorld __instance, float dt)
-        {
-			StopMeasure();
-        }
+        [PatchPrefix] public static bool Prefix(GameWorld __instance, float dt) { return StartMeasure(); }
+        [PatchPostfix] public static void Postfix(GameWorld __instance, float dt) { StopMeasure(); }
 	}
 
 	public class Patch_GameWorld_DoOtherWorldTick : MethodProfiler<GameWorld>
 	{
 		public Patch_GameWorld_DoOtherWorldTick() : base(nameof(GameWorld.DoOtherWorldTick)) { }
-
-        [PatchPrefix]
-        public static bool Prefix(GameWorld __instance, float dt)
-        {
-			return StartMeasure();
-        }
-
-        [PatchPostfix]
-        public static void Postfix(GameWorld __instance, float dt)
-        {
-			StopMeasure();
-        }
+        [PatchPrefix] public static bool Prefix(GameWorld __instance, float dt) { return StartMeasure(); }
+        [PatchPostfix] public static void Postfix(GameWorld __instance, float dt) { StopMeasure(); }
 	}
 }
