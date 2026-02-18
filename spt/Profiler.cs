@@ -68,6 +68,11 @@ namespace SevenBoldPencil.Profiler
 
 		public static bool StartMeasure(T instance)
 		{
+			if (IsWrongType(instance))
+			{
+				return true;
+			}
+
 			var instanceData = GetInstanceData(instance);
 			instanceData.IsRunning = true;
 			instanceData.Start = Stopwatch.GetTimestamp();
@@ -76,9 +81,23 @@ namespace SevenBoldPencil.Profiler
 
 		public static void StopMeasure(T instance)
 		{
+			if (IsWrongType(instance))
+			{
+				return;
+			}
+
 			var instanceData = GetInstanceData(instance);
 			instanceData.IsRunning = false;
 			instanceData.End = Stopwatch.GetTimestamp();
+		}
+
+		// if we have class A with virtual method
+		// and class B that inherits A,
+		// then instance of B will be tracked twice.
+		// this detects when tracker A receives instance of B
+		public static bool IsWrongType(T instance)
+		{
+			return instance.GetType() != typeof(T);
 		}
 
 		public static InstanceData GetInstanceData(T instance)
@@ -108,5 +127,4 @@ namespace SevenBoldPencil.Profiler
         [PatchPrefix] public static bool Prefix(T __instance) { return StartMeasure(__instance); }
         [PatchPostfix] public static void Postfix(T __instance) { StopMeasure(__instance); }
 	}
-
 }
