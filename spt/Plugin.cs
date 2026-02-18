@@ -40,15 +40,15 @@ namespace NonPipScopes {
 			Profilers = [
 				new Measure_GameWorld_DoWorldTick(),
 				new Measure_GameWorld_DoOtherWorldTick(),
-				new Measure_GameWorldUnityTickListener_LateUpdate(),
-				new Measure_BetterAudio_Update(),
-				new Measure_SpatialAudioSystem_Update(),
-				new Measure_SpatialAudioSystem_LateUpdate(),
-				new Measure_AmbientAudioSystem_Update(),
-				new Measure_AmbientAudioSystem_LateUpdate(),
-				new Measure_GPUInstancerManager_Update(),
-				new Measure_JobScheduler_LateUpdate(),
-				new Measure_CullingManager_Update(),
+				new Measure_LateUpdate<GameWorldUnityTickListener>(),
+				new Measure_Update<BetterAudio>(),
+				new Measure_Update<SpatialAudioSystem>(),
+				new Measure_LateUpdate<SpatialAudioSystem>(),
+				new Measure_Update<AmbientAudioSystem>(),
+				new Measure_LateUpdate<AmbientAudioSystem>(),
+				new Measure_Update<GPUInstancerManager>(),
+				new Measure_LateUpdate<JobScheduler>(),
+				new Measure_Update<CullingManager>(),
 			];
 
 			foreach (var profiler in Profilers)
@@ -119,7 +119,7 @@ namespace NonPipScopes {
 	}
 
 	// V type arg is used to generate different classes with same T type
-	// otherwise T.Method0 and T.Method1 will share one stopwatch
+	// otherwise T.Method0 and T.Method1 will overwrite each other stopwatches
 	public abstract class MethodProfiler<T, V> : ModulePatch, IProfiler
 	{
 		private readonly string _methodName;
@@ -190,6 +190,20 @@ namespace NonPipScopes {
 		}
 	}
 
+	public class Measure_Update<T> : MethodProfiler<T, int>
+	{
+		public Measure_Update() : base("Update") { }
+        [PatchPrefix] public static bool Prefix(T __instance) { return StartMeasure(__instance); }
+        [PatchPostfix] public static void Postfix(T __instance) { StopMeasure(__instance); }
+	}
+
+	public class Measure_LateUpdate<T> : MethodProfiler<T, bool>
+	{
+		public Measure_LateUpdate() : base("LateUpdate") { }
+        [PatchPrefix] public static bool Prefix(T __instance) { return StartMeasure(__instance); }
+        [PatchPostfix] public static void Postfix(T __instance) { StopMeasure(__instance); }
+	}
+
 	public class Measure_GameWorld_DoWorldTick : MethodProfiler<GameWorld, int>
 	{
 		public Measure_GameWorld_DoWorldTick() : base(nameof(GameWorld.DoWorldTick)) { }
@@ -203,69 +217,5 @@ namespace NonPipScopes {
         [PatchPrefix] public static bool Prefix(GameWorld __instance, float dt) { return StartMeasure(__instance); }
         [PatchPostfix] public static void Postfix(GameWorld __instance, float dt) { StopMeasure(__instance); }
 	}
-
-	public class Measure_GameWorldUnityTickListener_LateUpdate : MethodProfiler<GameWorldUnityTickListener, int>
-	{
-		public Measure_GameWorldUnityTickListener_LateUpdate() : base(nameof(GameWorldUnityTickListener.LateUpdate)) { }
-        [PatchPrefix] public static bool Prefix(GameWorldUnityTickListener __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(GameWorldUnityTickListener __instance) { StopMeasure(__instance); }
-	}
-
-	public class Measure_BetterAudio_Update : MethodProfiler<BetterAudio, int>
-	{
-		public Measure_BetterAudio_Update() : base(nameof(BetterAudio.Update)) { }
-        [PatchPrefix] public static bool Prefix(BetterAudio __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(BetterAudio __instance) { StopMeasure(__instance); }
-	}
-
-	public class Measure_SpatialAudioSystem_Update : MethodProfiler<SpatialAudioSystem, int>
-	{
-		public Measure_SpatialAudioSystem_Update() : base(nameof(SpatialAudioSystem.Update)) { }
-        [PatchPrefix] public static bool Prefix(SpatialAudioSystem __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(SpatialAudioSystem __instance) { StopMeasure(__instance); }
-	}
-
-	public class Measure_SpatialAudioSystem_LateUpdate : MethodProfiler<SpatialAudioSystem, int>
-	{
-		public Measure_SpatialAudioSystem_LateUpdate() : base(nameof(SpatialAudioSystem.LateUpdate)) { }
-        [PatchPrefix] public static bool Prefix(SpatialAudioSystem __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(SpatialAudioSystem __instance) { StopMeasure(__instance); }
-	}
-
-	public class Measure_AmbientAudioSystem_Update : MethodProfiler<AmbientAudioSystem, int>
-	{
-		public Measure_AmbientAudioSystem_Update() : base(nameof(AmbientAudioSystem.Update)) { }
-        [PatchPrefix] public static bool Prefix(AmbientAudioSystem __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(AmbientAudioSystem __instance) { StopMeasure(__instance); }
-	}
-
-	public class Measure_AmbientAudioSystem_LateUpdate : MethodProfiler<AmbientAudioSystem, bool>
-	{
-		public Measure_AmbientAudioSystem_LateUpdate() : base(nameof(AmbientAudioSystem.LateUpdate)) { }
-        [PatchPrefix] public static bool Prefix(AmbientAudioSystem __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(AmbientAudioSystem __instance) { StopMeasure(__instance); }
-	}
-
-	public class Measure_GPUInstancerManager_Update : MethodProfiler<GPUInstancerManager, bool>
-	{
-		public Measure_GPUInstancerManager_Update() : base(nameof(GPUInstancerManager.Update)) { }
-        [PatchPrefix] public static bool Prefix(GPUInstancerManager __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(GPUInstancerManager __instance) { StopMeasure(__instance); }
-	}
-
-	public class Measure_JobScheduler_LateUpdate : MethodProfiler<JobScheduler, bool>
-	{
-		public Measure_JobScheduler_LateUpdate() : base(nameof(JobScheduler.LateUpdate)) { }
-        [PatchPrefix] public static bool Prefix(JobScheduler __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(JobScheduler __instance) { StopMeasure(__instance); }
-	}
-
-	public class Measure_CullingManager_Update : MethodProfiler<CullingManager, bool>
-	{
-		public Measure_CullingManager_Update() : base(nameof(CullingManager.Update)) { }
-        [PatchPrefix] public static bool Prefix(CullingManager __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(CullingManager __instance) { StopMeasure(__instance); }
-	}
-
 
 }
