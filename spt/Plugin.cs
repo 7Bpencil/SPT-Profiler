@@ -8,6 +8,7 @@ using System.IO;
 using System.Reflection;
 using System.Collections;
 using System.Diagnostics;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
 using NonPipScopes.ExamplePatches;
@@ -23,6 +24,7 @@ using System;
 using Comfort.Common;
 using System.Text;
 using System.Collections.Generic;
+using SevenBoldPencil.Profiler;
 using static EFT.Player;
 
 namespace NonPipScopes {
@@ -31,7 +33,7 @@ namespace NonPipScopes {
         public static Plugin Instance;
 
 		public ManualLogSource LoggerInstance;
-		public IProfiler[] Profilers;
+		public List<IProfiler> Profilers;
 
         private void Awake() {
             Instance = this;
@@ -66,7 +68,7 @@ namespace NonPipScopes {
 
 		public void OnGUI()
         {
-			var windowHeight = startY + Profilers.Length * (height + separatorY) - separatorY + headerHeight;
+			var windowHeight = startY + Profilers.Count * (height + separatorY) - separatorY + headerHeight;
             GUI.Window(0, new Rect(50, 50, windowWidth, windowHeight), WindowFunction, "7Bpencil Profiler");
         }
 
@@ -103,108 +105,6 @@ namespace NonPipScopes {
 			}
 		}
     }
-
-	public interface IProfiler
-	{
-		public void Init();
-		public string GetName();
-		public (long sumDuration, long instances) GetDuration(long time, long validTime);
-	}
-
-	public class InstanceData
-	{
-		public bool IsRunning;
-		public long Start;
-		public long End;
-	}
-
-	// V type arg is used to generate different classes with same T type
-	// otherwise T.Method0 and T.Method1 will overwrite each other stopwatches
-	public abstract class MethodProfiler<T, V> : ModulePatch, IProfiler
-	{
-		private readonly string _methodName;
-		private readonly string _fullName;
-
-		private static Dictionary<T, InstanceData> _instancesData = new();
-
-		public MethodProfiler(string methodName)
-		{
-			_methodName = methodName;
-			_fullName = $"{typeof(T).Name}.{methodName}";
-		}
-
-		public void Init()
-		{
-			Enable();
-		}
-
-		public string GetName()
-		{
-			return _fullName;
-		}
-
-		public (long sumDuration, long instances) GetDuration(long time, long validTime)
-		{
-			long sum = 0;
-			long count = 0;
-			foreach (var instanceData in _instancesData.Values)
-			{
-				if (!instanceData.IsRunning && time - instanceData.End <= validTime)
-				{
-					sum += instanceData.End - instanceData.Start;
-					count += 1;
-				}
-			}
-			return (sum, count);
-		}
-
-        protected override MethodBase GetTargetMethod()
-        {
-            return AccessTools.Method(typeof(T), _methodName);
-        }
-
-		public static bool StartMeasure(T instance)
-		{
-			var instanceData = GetInstanceData(instance);
-			instanceData.IsRunning = true;
-			instanceData.Start = Stopwatch.GetTimestamp();
-			return true;
-		}
-
-		public static void StopMeasure(T instance)
-		{
-			var instanceData = GetInstanceData(instance);
-			instanceData.IsRunning = false;
-			instanceData.End = Stopwatch.GetTimestamp();
-		}
-
-		public static InstanceData GetInstanceData(T instance)
-		{
-			if (_instancesData.TryGetValue(instance, out var instanceData))
-			{
-				return instanceData;
-			}
-
-			var newInstanceData = new InstanceData();
-			_instancesData.Add(instance, newInstanceData);
-
-			return newInstanceData;
-		}
-	}
-
-	public class Measure_Update<T> : MethodProfiler<T, int>
-	{
-		public Measure_Update() : base("Update") { }
-        [PatchPrefix] public static bool Prefix(T __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(T __instance) { StopMeasure(__instance); }
-	}
-
-	public class Measure_LateUpdate<T> : MethodProfiler<T, bool>
-	{
-		public Measure_LateUpdate() : base("LateUpdate") { }
-        [PatchPrefix] public static bool Prefix(T __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(T __instance) { StopMeasure(__instance); }
-	}
 
 	public class Measure_GameWorld_DoWorldTick : MethodProfiler<GameWorld, int>
 	{
