@@ -94,9 +94,9 @@ namespace NonPipScopes {
 			foreach (var profiler in Profilers)
 			{
 				var name = profiler.GetName();
-				var duration = profiler.GetDuration(currentTime, validTime);
+				var (duration, instances) = profiler.GetDuration(currentTime, validTime);
 				var timeMs = GetDurationMilliseconds(duration);
-				var text = $"{timeMs:0.0000} ms | {name}";
+				var text = $"{timeMs:0.0000} ms | {instances} | {name}";
 				var rect = new Rect(x, y, windowWidth, height);
 				GUI.Label(rect, text);
 				y += height + separatorY;
@@ -108,7 +108,7 @@ namespace NonPipScopes {
 	{
 		public void Init();
 		public string GetName();
-		public long GetDuration(long time, long validTime);
+		public (long sumDuration, long instances) GetDuration(long time, long validTime);
 	}
 
 	public class InstanceData
@@ -143,17 +143,19 @@ namespace NonPipScopes {
 			return _fullName;
 		}
 
-		public long GetDuration(long time, long validTime)
+		public (long sumDuration, long instances) GetDuration(long time, long validTime)
 		{
 			long sum = 0;
+			long count = 0;
 			foreach (var instanceData in _instancesData.Values)
 			{
 				if (!instanceData.IsRunning && time - instanceData.End <= validTime)
 				{
 					sum += instanceData.End - instanceData.Start;
+					count += 1;
 				}
 			}
-			return sum;
+			return (sum, count);
 		}
 
         protected override MethodBase GetTargetMethod()
