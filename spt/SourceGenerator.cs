@@ -25,10 +25,15 @@ namespace SevenBoldPencil.Profiler
 			var assemblies = AppDomain.CurrentDomain.GetAssemblies();
 			var assemblyName = "Assembly-CSharp";
 			var assembly = assemblies.FirstOrDefault(assembly => assembly.GetName().Name == assemblyName);
-			if (assembly == null)
+
+			// https://docs.unity3d.com/2022.3/Documentation/ScriptReference/MonoBehaviour.html
+			// I tried all events, but only these three are really visible in profiler
+			var unityEvents = new HashSet<string>()
 			{
-				return;
-			}
+				"FixedUpdate",
+				"Update",
+				"LateUpdate",
+			};
 
 			var resultMethods = new List<TypeMethod>();
 			foreach (var assemblyType in assembly.GetTypes())
@@ -38,7 +43,7 @@ namespace SevenBoldPencil.Profiler
 				{
 					foreach (var method in assemblyType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
 					{
-						if ((method.Name == "Update" || method.Name == "LateUpdate")
+						if (unityEvents.Contains(method.Name)
 							&& method.GetParameters().Length == 0
 							&& method.GetMethodBody() != null)
 						{
@@ -56,34 +61,42 @@ namespace SevenBoldPencil.Profiler
 			}
 
 			var builder = new StringBuilder();
-			builder.AppendLine("using Comfort.Common;");
-			builder.AppendLine("using SPT.Reflection.Patching;");
-			builder.AppendLine("using System;");
-			builder.AppendLine("using System.Collections.Generic;");
-			builder.AppendLine("using System.Diagnostics;");
-			builder.AppendLine("using System.Reflection;");
-			builder.AppendLine("using System.Linq;");
-			builder.AppendLine("using HarmonyLib;");
-			builder.AppendLine("namespace SevenBoldPencil.Profiler");
-			builder.AppendLine("{");
-			builder.AppendLine("public static class Generated");
-			builder.AppendLine("{");
+			builder.AppendLine(@"using Comfort.Common;");
+			builder.AppendLine(@"using SPT.Reflection.Patching;");
+			builder.AppendLine(@"using System;");
+			builder.AppendLine(@"using System.Collections.Generic;");
+			builder.AppendLine(@"using System.Diagnostics;");
+			builder.AppendLine(@"using System.Reflection;");
+			builder.AppendLine(@"using System.Linq;");
+			builder.AppendLine(@"using HarmonyLib;");
 
-			builder.AppendLine("public static int GetProfilersCount()");
-			builder.AppendLine("{");
-			builder.AppendLine($"return {resultMethods.Count};");
-			builder.AppendLine("}");
-
-			builder.AppendLine("public static void AppendProfilers(List<IProfiler> profilers)");
-			builder.AppendLine("{");
-			foreach (var method in resultMethods)
-			{
-				builder.AppendLine($"profilers.Add(new Measure_{method.MethodName}<{method.TypeName}>());");
-			}
-			builder.AppendLine("}");
-
-			builder.AppendLine("}");
-			builder.AppendLine("}");
+			builder.AppendLine(@"namespace SevenBoldPencil.Profiler");
+			builder.AppendLine(@"{");
+			builder.AppendLine(@"    public static class Generated");
+			builder.AppendLine(@"    {");
+			builder.AppendLine(@"        public static List<IProfiler> GetProfilers(int extra)");
+			builder.AppendLine(@"        {");
+			builder.AppendLine($"            var profilers = new List<IProfiler>({resultMethods.Count} + extra)");
+			builder.AppendLine(@"            {");
+		foreach (var method in resultMethods)
+		{
+			builder.AppendLine($"                new Measure_{method.MethodName}<{method.TypeName}>(),");
+		}
+			builder.AppendLine(@"            };");
+			builder.AppendLine(@"            return profilers;");
+			builder.AppendLine(@"        }");
+			builder.AppendLine(@"    }");
+		foreach (var unityEvent in unityEvents)
+		{
+			builder.AppendLine($"    public class Dummy_{unityEvent} {{ }}");
+			builder.AppendLine($"    public class Measure_{unityEvent}<T> : MethodProfiler<T, Dummy_{unityEvent}>");
+			builder.AppendLine(@"    {");
+			builder.AppendLine($"        public Measure_{unityEvent}() : base(\"{unityEvent}\") {{ }}");
+			builder.AppendLine(@"        [PatchPrefix] public static bool Prefix(T __instance) { return StartMeasure(__instance); }");
+			builder.AppendLine(@"        [PatchPostfix] public static void Postfix(T __instance) { StopMeasure(__instance); }");
+			builder.AppendLine(@"    }");
+		}
+			builder.AppendLine(@"}");
 
 			var result = builder.ToString();
 			File.WriteAllText("Generated.cs", result);

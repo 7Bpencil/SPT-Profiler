@@ -113,18 +113,4 @@ namespace SevenBoldPencil.Profiler
 			return newInstanceData;
 		}
 	}
-
-	public class Measure_Update<T> : MethodProfiler<T, int>
-	{
-		public Measure_Update() : base("Update") { }
-        [PatchPrefix] public static bool Prefix(T __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(T __instance) { StopMeasure(__instance); }
-	}
-
-	public class Measure_LateUpdate<T> : MethodProfiler<T, bool>
-	{
-		public Measure_LateUpdate() : base("LateUpdate") { }
-        [PatchPrefix] public static bool Prefix(T __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(T __instance) { StopMeasure(__instance); }
-	}
 }

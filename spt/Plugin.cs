@@ -47,16 +47,13 @@ namespace NonPipScopes {
 
         private void Awake() {
             Instance = this;
+			LoggerInstance = Logger;
 
 			// SourceGenerator.Generate();
+			// Profilers = new List<IProfiler>(0);
 
-			LoggerInstance = Logger;
-			Profilers = [
-				new Measure_GameWorld_DoWorldTick(),
-				new Measure_GameWorld_DoOtherWorldTick(),
-				new Measure_BotsController_method_0(),
-			];
-			Generated.AppendProfilers(Profilers);
+			Profilers = Generated.GetProfilers(0);
+
 			measurements = new List<Measurement>(Profilers.Count);
 
 			foreach (var profiler in Profilers)
@@ -109,6 +106,7 @@ namespace NonPipScopes {
 
 		public void OnGUI()
         {
+			// TODO add settings to hide/show window, stop/resume updates, make window draggable
 			CollectMeasurements();
 			var visibleAmount = GetVisibleMeasurementsCount();
 			var windowHeight = startY + visibleAmount * (height + separatorY) - separatorY + headerHeight;
@@ -146,25 +144,4 @@ namespace NonPipScopes {
 			}
 		}
     }
-
-	public class Measure_GameWorld_DoWorldTick : MethodProfiler<GameWorld, int>
-	{
-		public Measure_GameWorld_DoWorldTick() : base(nameof(GameWorld.DoWorldTick)) { }
-        [PatchPrefix] public static bool Prefix(GameWorld __instance, float dt) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(GameWorld __instance, float dt) { StopMeasure(__instance); }
-	}
-
-	public class Measure_GameWorld_DoOtherWorldTick : MethodProfiler<GameWorld, bool>
-	{
-		public Measure_GameWorld_DoOtherWorldTick() : base(nameof(GameWorld.DoOtherWorldTick)) { }
-        [PatchPrefix] public static bool Prefix(GameWorld __instance, float dt) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(GameWorld __instance, float dt) { StopMeasure(__instance); }
-	}
-
-	public class Measure_BotsController_method_0 : MethodProfiler<BotsController, int>
-	{
-		public Measure_BotsController_method_0() : base(nameof(BotsController.method_0)) { }
-        [PatchPrefix] public static bool Prefix(BotsController __instance) { return StartMeasure(__instance); }
-        [PatchPostfix] public static void Postfix(BotsController __instance) { StopMeasure(__instance); }
-	}
 }
