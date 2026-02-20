@@ -6,7 +6,7 @@ using UnityEngine;
 using System.Collections.Generic;
 
 namespace SevenBoldPencil.Profiler {
-    [BepInPlugin("7Bpencil.Profiler", "Profiler", "1.0.0")]
+    [BepInPlugin("7Bpencil.Profiler", "7Bpencil.Profiler", "1.0.0")]
     public class Plugin : BaseUnityPlugin {
 		private struct Measurement
 		{
@@ -93,7 +93,7 @@ namespace SevenBoldPencil.Profiler {
 				}
 
 				windowRect.height = windowHeight;
-	            windowRect = GUI.Window(0, windowRect, WindowFunction, $"7Bpencil Profiler | {measurementsTotalMs:0.0000} ms");
+	            windowRect = GUI.Window(0, windowRect, WindowFunction, $"Profiler | {measurementsTotalMs:0.0000} ms");
 			}
         }
 
