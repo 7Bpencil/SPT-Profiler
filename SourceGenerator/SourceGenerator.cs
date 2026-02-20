@@ -99,7 +99,7 @@ namespace SevenBoldPencil.Profiler
 			builder.AppendLine(@"}");
 
 			var result = builder.ToString();
-			File.WriteAllText("Generated.cs", result);
+			File.WriteAllText("Development/SPT-Profiler/Profiler/Generated.cs", result);
 		}
 	}
 }
