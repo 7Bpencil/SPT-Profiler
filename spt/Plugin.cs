@@ -14,7 +14,6 @@ using System.Diagnostics;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
-using NonPipScopes.ExamplePatches;
 using EFT;
 using EFT.InventoryLogic;
 using EFT.Animations;
