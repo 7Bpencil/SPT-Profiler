@@ -1,36 +1,12 @@
-﻿using AbsolutDecals;
-using Diz.Jobs;
-using GPUInstancer;
-using Audio.SpatialSystem;
-using Audio.AmbientSubsystem;
-using BepInEx;
-using BepInEx.Bootstrap;
+﻿using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
-using System.IO;
-using System.Reflection;
-using System.Collections;
 using System.Diagnostics;
-using System.Linq;
 using UnityEngine;
-using UnityEngine.Rendering;
-using EFT;
-using EFT.InventoryLogic;
-using EFT.Animations;
-using EFT.CameraControl;
-using EFT.UI;
-using EFT.UI.Settings;
-using HarmonyLib;
-using SPT.Reflection.Patching;
-using System;
-using Comfort.Common;
-using System.Text;
 using System.Collections.Generic;
-using SevenBoldPencil.Profiler;
-using static EFT.Player;
 
-namespace NonPipScopes {
-    [BepInPlugin("7Bpencil.NonPipScopes", "NonPipScopes", "1.0.0")]
+namespace SevenBoldPencil.Profiler {
+    [BepInPlugin("7Bpencil.Profiler", "Profiler", "1.0.0")]
     public class Plugin : BaseUnityPlugin {
 		private struct Measurement
 		{

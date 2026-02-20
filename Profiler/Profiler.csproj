@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <RootNamespace>NonPipScopes</RootNamespace>
+    <RootNamespace>SevenBoldPencil.Profiler</RootNamespace>
     <Nullable>disable</Nullable>
     <Authors>SPT</Authors>
     <Copyright></Copyright>
@@ -105,6 +105,5 @@
     <Exec Command="rmdir /s /q &quot;$(OutDir)&quot;" />
     <Exec Command="mkdir &quot;$(OutDir)&quot;" />
     <Exec Command="copy &quot;$(TargetPath)&quot; &quot;$(OutDir)\$(TargetFileName)&quot;" />
-    <Exec Command="xcopy /hievry &quot;$(ProjectDir)\assets&quot; &quot;$(OutDir)\assets&quot;" />
   </Target>
 </Project>
