@@ -4,6 +4,8 @@ using GPUInstancer;
 using Audio.SpatialSystem;
 using Audio.AmbientSubsystem;
 using BepInEx;
+using BepInEx.Bootstrap;
+using BepInEx.Configuration;
 using BepInEx.Logging;
 using System.IO;
 using System.Reflection;
@@ -40,25 +42,83 @@ namespace NonPipScopes {
 
         public static Plugin Instance;
 
+        public static ConfigEntry<KeyboardShortcut> HideShowWindow { get; set; }
+        public static ConfigEntry<KeyboardShortcut> PauseContinueRecording { get; set; }
+
 		public ManualLogSource LoggerInstance;
-		public List<IProfiler> Profilers;
+		private List<IProfiler> profilers;
 		private List<Measurement> measurements;
 		private double measurementsTotalMs;
+		private bool isProfilerWindowVisible;
+		private bool isProfilerRecording;
+		private Rect windowRect;
+
+		private const int maxVisibleAmount = 25;
+		private const float windowWidth = 400f;
+		private const float headerHeight = 15f;
+		private const float startX = 15f;
+		private const float startY = headerHeight + 15f + separatorY;
+		private const float height = 20f;
+		private const float separatorY = 2.5f;
 
         private void Awake() {
+			var section = "Main";
+            HideShowWindow = Config.Bind(section, "Hide/Show Window", new KeyboardShortcut(KeyCode.F4), "Hide/Show Window");
+            PauseContinueRecording = Config.Bind(section, "Pause/Continue Recording", new KeyboardShortcut(KeyCode.F5), "Pause/Continue Recording");
+
+			isProfilerWindowVisible = true;
+			isProfilerRecording = true;
+
             Instance = this;
 			LoggerInstance = Logger;
 
 			// SourceGenerator.Generate();
-			// Profilers = new List<IProfiler>(0);
+			// profilers = new List<IProfiler>(0);
 
-			Profilers = Generated.GetProfilers(0);
+			profilers = Generated.GetProfilers(0);
 
-			measurements = new List<Measurement>(Profilers.Count);
+			measurements = new List<Measurement>(profilers.Count);
 
-			foreach (var profiler in Profilers)
+			foreach (var profiler in profilers)
 			{
 				profiler.Init();
+			}
+        }
+
+		public void Update()
+		{
+			if (Input.GetKeyDown(HideShowWindow.Value.MainKey))
+			{
+				isProfilerWindowVisible = !isProfilerWindowVisible;
+			}
+			if (Input.GetKeyDown(PauseContinueRecording.Value.MainKey))
+			{
+				isProfilerRecording = !isProfilerRecording;
+			}
+		}
+
+		public void OnGUI()
+        {
+			if (isProfilerWindowVisible)
+			{
+				if (isProfilerRecording)
+				{
+					CollectMeasurements();
+				}
+
+				var visibleAmount = GetVisibleMeasurementsCount();
+				var windowHeight = startY + visibleAmount * (height + separatorY) - separatorY + headerHeight;
+
+				// if width == 0, then windowRect has not been initialized, so init it
+				if (windowRect.width == 0f)
+				{
+					windowRect.width = windowWidth;
+					windowRect.x = 50;
+					windowRect.y = 50;
+				}
+
+				windowRect.height = windowHeight;
+	            windowRect = GUI.Window(0, windowRect, WindowFunction, $"7Bpencil Profiler | {measurementsTotalMs:0.0000} ms");
 			}
         }
 
@@ -69,7 +129,7 @@ namespace NonPipScopes {
 
 			double total = 0;
 			measurements.Clear();
-			foreach (var profiler in Profilers)
+			foreach (var profiler in profilers)
 			{
 				var name = profiler.GetName();
 				var (duration, instances) = profiler.GetDuration(currentTime, validTime);
@@ -91,28 +151,6 @@ namespace NonPipScopes {
 			measurementsTotalMs = total;
 		}
 
-		private int GetVisibleMeasurementsCount()
-		{
-			return Mathf.Min(measurements.Count, maxVisibleAmount);
-		}
-
-		private const int maxVisibleAmount = 20;
-		private const float windowWidth = 400f;
-		private const float headerHeight = 15f;
-		private const float startX = 15f;
-		private const float startY = headerHeight + 15f + separatorY;
-		private const float height = 20f;
-		private const float separatorY = 2.5f;
-
-		public void OnGUI()
-        {
-			// TODO add settings to hide/show window, stop/resume updates, make window draggable
-			CollectMeasurements();
-			var visibleAmount = GetVisibleMeasurementsCount();
-			var windowHeight = startY + visibleAmount * (height + separatorY) - separatorY + headerHeight;
-            GUI.Window(0, new Rect(50, 50, windowWidth, windowHeight), WindowFunction, $"7Bpencil Profiler | {measurementsTotalMs:0.0000} ms");
-        }
-
 		public static double GetDurationSeconds(long durationTicks)
 		{
 			return (double)durationTicks / Stopwatch.Frequency;
@@ -128,7 +166,12 @@ namespace NonPipScopes {
 			return (milliseconds * Stopwatch.Frequency) / 1000;
 		}
 
-        private void WindowFunction(int TWCWindowID)
+		private int GetVisibleMeasurementsCount()
+		{
+			return Mathf.Min(measurements.Count, maxVisibleAmount);
+		}
+
+        private void WindowFunction(int windowID)
 		{
 			var x = startX;
 			var y = startY;
@@ -142,6 +185,9 @@ namespace NonPipScopes {
 				GUI.Label(rect, text);
 				y += height + separatorY;
 			}
+
+			GUI.DragWindow();
 		}
+
     }
 }
