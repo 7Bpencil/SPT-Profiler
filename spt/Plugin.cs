@@ -41,8 +41,8 @@ namespace NonPipScopes {
 
         public static Plugin Instance;
 
-        public static ConfigEntry<KeyboardShortcut> HideShowWindow { get; set; }
-        public static ConfigEntry<KeyboardShortcut> PauseContinueRecording { get; set; }
+        public static ConfigEntry<KeyboardShortcut> HideShowWindow;
+        public static ConfigEntry<KeyboardShortcut> PauseContinueRecording;
 
 		public ManualLogSource LoggerInstance;
 		private List<IProfiler> profilers;
