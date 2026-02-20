@@ -100,10 +100,8 @@
 
   <Target Name="CopyToSPT" AfterTargets="AfterBuild">
     <PropertyGroup>
-      <OutDir>$(ProjectDir)\..\..\..\BepInEx\plugins\$(TargetName)</OutDir>
+      <OutDir>$(ProjectDir)\..\..\..\BepInEx\plugins</OutDir>
     </PropertyGroup>
-    <Exec Command="rmdir /s /q &quot;$(OutDir)&quot;" />
-    <Exec Command="mkdir &quot;$(OutDir)&quot;" />
     <Exec Command="copy &quot;$(TargetPath)&quot; &quot;$(OutDir)\$(TargetFileName)&quot;" />
   </Target>
 </Project>
