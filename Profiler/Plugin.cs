@@ -46,12 +46,7 @@ namespace SevenBoldPencil.Profiler {
 
             Instance = this;
 			LoggerInstance = Logger;
-
-			// SourceGenerator.Generate();
-			// profilers = new List<IProfiler>(0);
-
-			profilers = Generated.GetProfilers(0);
-
+			profilers = Generated.GetProfilers();
 			measurements = new List<Measurement>(profilers.Count);
 
 			foreach (var profiler in profilers)

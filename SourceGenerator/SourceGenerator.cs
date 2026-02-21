@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Linq;
 using HarmonyLib;
+using UnityEngine;
 
 namespace SevenBoldPencil.Profiler
 {
@@ -38,8 +39,8 @@ namespace SevenBoldPencil.Profiler
 			var resultMethods = new List<TypeMethod>();
 			foreach (var assemblyType in assembly.GetTypes())
 			{
-				// do not include structs and generic classes
-				if (assemblyType.IsClass && !assemblyType.ContainsGenericParameters)
+				// do not check structs and ignore generic classes
+				if (assemblyType.IsClass && !assemblyType.ContainsGenericParameters && assemblyType.IsSubclassOf(typeof(MonoBehaviour)))
 				{
 					foreach (var method in assemblyType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
 					{
@@ -74,9 +75,9 @@ namespace SevenBoldPencil.Profiler
 			builder.AppendLine(@"{");
 			builder.AppendLine(@"    public static class Generated");
 			builder.AppendLine(@"    {");
-			builder.AppendLine(@"        public static List<IProfiler> GetProfilers(int extra)");
+			builder.AppendLine(@"        public static List<IProfiler> GetProfilers()");
 			builder.AppendLine(@"        {");
-			builder.AppendLine($"            var profilers = new List<IProfiler>({resultMethods.Count} + extra)");
+			builder.AppendLine($"            var profilers = new List<IProfiler>({resultMethods.Count})");
 			builder.AppendLine(@"            {");
 		foreach (var method in resultMethods)
 		{
