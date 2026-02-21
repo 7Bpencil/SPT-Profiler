@@ -8,33 +8,15 @@ using System.Collections.Generic;
 namespace SevenBoldPencil.Profiler {
     [BepInPlugin("7Bpencil.Profiler", "7Bpencil.Profiler", "1.0.0")]
     public class Plugin : BaseUnityPlugin {
-		private struct Measurement
-		{
-			public string Name;
-			public double TimeMs;
-			public long Instances;
-		}
-
         public static Plugin Instance;
 
         public static ConfigEntry<KeyboardShortcut> HideShowWindow;
         public static ConfigEntry<KeyboardShortcut> PauseContinueRecording;
 
 		public ManualLogSource LoggerInstance;
-		private List<IProfiler> profilers;
-		private List<Measurement> measurements;
-		private double measurementsTotalMs;
+		private List<ProfilersGroup> profilersGroups;
 		private bool isProfilerWindowVisible;
 		private bool isProfilerRecording;
-		private Rect windowRect;
-
-		private const int maxVisibleAmount = 25;
-		private const float windowWidth = 400f;
-		private const float headerHeight = 15f;
-		private const float startX = 15f;
-		private const float startY = headerHeight + 15f + separatorY;
-		private const float height = 20f;
-		private const float separatorY = 2.5f;
 
         private void Awake() {
 			var section = "Main";
@@ -46,13 +28,12 @@ namespace SevenBoldPencil.Profiler {
 
             Instance = this;
 			LoggerInstance = Logger;
-			profilers = Generated.GetProfilers();
-			measurements = new List<Measurement>(profilers.Count);
 
-			foreach (var profiler in profilers)
+			profilersGroups = new List<ProfilersGroup>(2)
 			{
-				profiler.Init();
-			}
+				Profilers_MonoBehaviour.GetProfilersGroup(),
+				Profilers_AI.GetProfilersGroup(),
+			};
         }
 
 		public void Update()
@@ -69,35 +50,64 @@ namespace SevenBoldPencil.Profiler {
 
 		public void OnGUI()
         {
-			if (isProfilerWindowVisible)
+			if (!isProfilerWindowVisible)
 			{
-				if (isProfilerRecording)
+				return;
+			}
+			if (isProfilerRecording)
+			{
+				var currentTime = Stopwatch.GetTimestamp();
+				foreach (var profilersGroup in profilersGroups)
 				{
-					CollectMeasurements();
+					profilersGroup.CollectMeasurements(currentTime);
 				}
-
-				var visibleAmount = GetVisibleMeasurementsCount();
-				var windowHeight = startY + visibleAmount * (height + separatorY) - separatorY + headerHeight;
-
-				// if width == 0, then windowRect has not been initialized, so init it
-				if (windowRect.width == 0f)
-				{
-					windowRect.width = windowWidth;
-					windowRect.x = 50;
-					windowRect.y = 50;
-				}
-
-				windowRect.height = windowHeight;
-	            windowRect = GUI.Window(0, windowRect, WindowFunction, $"Profiler | {measurementsTotalMs:0.0000} ms");
+			}
+			for (var i = 0; i < profilersGroups.Count; i++)
+			{
+				var profilersGroup = profilersGroups[i];
+				profilersGroup.DrawWindow(i);
 			}
         }
+    }
 
-		private void CollectMeasurements()
+	public class ProfilersGroup
+	{
+		private struct Measurement
 		{
-			var currentTime = Stopwatch.GetTimestamp();
+			public string Name;
+			public double TimeMs;
+			public long Instances;
+		}
+
+		private string name;
+		private List<IProfiler> profilers;
+		private List<Measurement> measurements;
+		private Rect windowRect;
+
+		private const int maxVisibleAmount = 25;
+		private const float windowWidth = 400f;
+		private const float headerHeight = 15f;
+		private const float startX = 15f;
+		private const float startY = headerHeight + 15f + separatorY;
+		private const float height = 20f;
+		private const float separatorX = 15f;
+		private const float separatorY = 2.5f;
+
+		public ProfilersGroup(string name, List<IProfiler> profilers)
+		{
+			this.name = name;
+			this.profilers = profilers;
+			this.measurements = new List<Measurement>(profilers.Count);
+			foreach (var profiler in profilers)
+			{
+				profiler.Init();
+			}
+		}
+
+		public void CollectMeasurements(long currentTime)
+		{
 			var validTime = GetTicksFromMilliseconds(100);
 
-			double total = 0;
 			measurements.Clear();
 			foreach (var profiler in profilers)
 			{
@@ -115,10 +125,9 @@ namespace SevenBoldPencil.Profiler {
 					TimeMs = timeMs,
 					Instances = instances,
 				});
-				total += timeMs;
 			}
+
 			measurements.Sort((a, b) => b.TimeMs.CompareTo(a.TimeMs));
-			measurementsTotalMs = total;
 		}
 
 		public static double GetDurationSeconds(long durationTicks)
@@ -141,6 +150,23 @@ namespace SevenBoldPencil.Profiler {
 			return Mathf.Min(measurements.Count, maxVisibleAmount);
 		}
 
+		public void DrawWindow(int windowIndex)
+		{
+			// if width == 0, then windowRect has not been initialized, so init it
+			if (windowRect.width == 0f)
+			{
+				windowRect.width = windowWidth;
+				windowRect.x = 50 + windowIndex * (windowWidth + separatorX);
+				windowRect.y = 50;
+			}
+
+			var visibleAmount = GetVisibleMeasurementsCount();
+			var windowHeight = startY + visibleAmount * (height + separatorY) - separatorY + headerHeight;
+
+			windowRect.height = windowHeight;
+            windowRect = GUI.Window(windowIndex, windowRect, WindowFunction, $"Profiler {name}");
+		}
+
         private void WindowFunction(int windowID)
 		{
 			var x = startX;
@@ -158,6 +184,5 @@ namespace SevenBoldPencil.Profiler {
 
 			GUI.DragWindow();
 		}
-
-    }
+	}
 }

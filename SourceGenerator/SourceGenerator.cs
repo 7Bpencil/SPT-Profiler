@@ -10,18 +10,48 @@ using System.Reflection;
 using System.Linq;
 using HarmonyLib;
 using UnityEngine;
+using EFT;
 
 namespace SevenBoldPencil.Profiler
 {
 	public static class SourceGenerator
 	{
-		public struct TypeMethod
+		public static void Generate()
+		{
+			Generate_Profilers("AI", new List<ProfilerDescription>()
+			{
+				new ProfilerDescription(typeof(BotsController), nameof(BotsController.method_0)),
+				new ProfilerDescription(typeof(AICoreControllerClass), nameof(AICoreControllerClass.Update)),
+				new ProfilerDescription(typeof(BotsSmokesVisionSystem), nameof(BotsSmokesVisionSystem.Update)),
+				new ProfilerDescription(typeof(AITaskManager), nameof(AITaskManager.Update)),
+				new ProfilerDescription(typeof(BotsClass), nameof(BotsClass.UpdateByUnity)),
+			});
+			Generate_Profilers_MonoBehaviour();
+		}
+
+		public struct ProfilerDescription
 		{
 			public string TypeName;
 			public string MethodName;
+			public string MethodSignature;
+			public string ProfilerName;
+
+			public ProfilerDescription(Type type, string methodName, string methodSignature = null)
+			{
+				// if class is nested, its name is returned as OuterClass+Class,
+				// in that case convert it to OuterClass.Class
+				var typeName = type.FullName.Replace("+", ".");
+				var typeNameWithoutDots = typeName.Replace(".", "_");
+				var profilerName = $"{typeNameWithoutDots}_{methodName}";
+
+				TypeName = typeName;
+				MethodName = methodName;
+				MethodSignature = methodSignature;
+				ProfilerName = profilerName;
+			}
 		}
 
-		public static void Generate()
+		public static void Generate_Profilers_MonoBehaviour()
 		{
 			var assemblies = AppDomain.CurrentDomain.GetAssemblies();
 			var assemblyName = "Assembly-CSharp";
@@ -36,7 +66,8 @@ namespace SevenBoldPencil.Profiler
 				"LateUpdate",
 			};
 
-			var resultMethods = new List<TypeMethod>();
+			var resultProfilers = new HashSet<string>();
+			var resultDescriptions = new List<ProfilerDescription>();
 			foreach (var assemblyType in assembly.GetTypes())
 			{
 				// do not check structs and ignore generic classes
@@ -44,23 +75,24 @@ namespace SevenBoldPencil.Profiler
 				{
 					foreach (var method in assemblyType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
 					{
-						if (unityEvents.Contains(method.Name)
-							&& method.GetParameters().Length == 0
-							&& method.GetMethodBody() != null)
+						if (unityEvents.Contains(method.Name) && method.GetParameters().Length == 0 && method.GetMethodBody() != null)
 						{
-							// if class is nested, its name is returned as OuterClass+Class,
-							// in that case convert it to OuterClass.Class
-							var typeName = assemblyType.FullName.Replace("+", ".");
-							resultMethods.Add(new TypeMethod()
+							// some methods are returned multiple times, so prevent repetitions
+							var description = new ProfilerDescription(assemblyType, method.Name);
+							if (resultProfilers.Add(description.ProfilerName))
 							{
-								TypeName = typeName,
-								MethodName = method.Name,
-							});
+								resultDescriptions.Add(description);
+							}
 						}
 					}
 				}
 			}
 
+			Generate_Profilers("MonoBehaviour", resultDescriptions);
+		}
+
+		public static void Generate_Profilers(string groupName, List<ProfilerDescription> descriptions)
+		{
 			var builder = new StringBuilder();
 			builder.AppendLine(@"using Comfort.Common;");
 			builder.AppendLine(@"using SPT.Reflection.Patching;");
@@ -70,37 +102,44 @@ namespace SevenBoldPencil.Profiler
 			builder.AppendLine(@"using System.Reflection;");
 			builder.AppendLine(@"using System.Linq;");
 			builder.AppendLine(@"using HarmonyLib;");
+			builder.AppendLine(@"using EFT;");
 
 			builder.AppendLine(@"namespace SevenBoldPencil.Profiler");
 			builder.AppendLine(@"{");
-			builder.AppendLine(@"    public static class Generated");
+			builder.AppendLine($"    public static class Profilers_{groupName}");
 			builder.AppendLine(@"    {");
-			builder.AppendLine(@"        public static List<IProfiler> GetProfilers()");
+			builder.AppendLine(@"        public static ProfilersGroup GetProfilersGroup()");
 			builder.AppendLine(@"        {");
-			builder.AppendLine($"            var profilers = new List<IProfiler>({resultMethods.Count})");
+			builder.AppendLine($"            var profilers = new List<IProfiler>({descriptions.Count})");
 			builder.AppendLine(@"            {");
-		foreach (var method in resultMethods)
+		foreach (var description in descriptions)
 		{
-			builder.AppendLine($"                new Measure_{method.MethodName}<{method.TypeName}>(),");
+			builder.AppendLine($"                new Measure_{description.ProfilerName}(),");
 		}
 			builder.AppendLine(@"            };");
-			builder.AppendLine(@"            return profilers;");
+			builder.AppendLine($"            var profilersGroup = new ProfilersGroup(\"{groupName}\", profilers);");
+			builder.AppendLine(@"            return profilersGroup;");
 			builder.AppendLine(@"        }");
 			builder.AppendLine(@"    }");
-		foreach (var unityEvent in unityEvents)
+		foreach (var description in descriptions)
 		{
-			builder.AppendLine($"    public class Dummy_{unityEvent} {{ }}");
-			builder.AppendLine($"    public class Measure_{unityEvent}<T> : MethodProfiler<T, Dummy_{unityEvent}>");
+			var patchMethodSignature = string.IsNullOrWhiteSpace(description.MethodSignature)
+				? $"{description.TypeName} __instance"
+				: $"{description.TypeName} __instance, {description.MethodSignature}";
+
+			builder.AppendLine($"    public class Dummy_{description.ProfilerName} {{ }}");
+			builder.AppendLine($"    public class Measure_{description.ProfilerName} : MethodProfiler<{description.TypeName}, Dummy_{description.ProfilerName}>");
 			builder.AppendLine(@"    {");
-			builder.AppendLine($"        public Measure_{unityEvent}() : base(\"{unityEvent}\") {{ }}");
-			builder.AppendLine(@"        [PatchPrefix] public static bool Prefix(T __instance) { return StartMeasure(__instance); }");
-			builder.AppendLine(@"        [PatchPostfix] public static void Postfix(T __instance) { StopMeasure(__instance); }");
+			builder.AppendLine($"        public Measure_{description.ProfilerName}() : base(\"{description.MethodName}\") {{ }}");
+			builder.AppendLine($"        [PatchPrefix] public static bool Prefix({patchMethodSignature}) {{ return StartMeasure(__instance); }}");
+			builder.AppendLine($"        [PatchPostfix] public static void Postfix({patchMethodSignature}) {{ StopMeasure(__instance); }}");
 			builder.AppendLine(@"    }");
 		}
 			builder.AppendLine(@"}");
 
 			var result = builder.ToString();
-			File.WriteAllText("Development/SPT-Profiler/Profiler/Generated.cs", result);
+			File.WriteAllText($"Development/SPT-Profiler/Profiler/Profilers_{groupName}.g.cs", result);
 		}
+
 	}
 }
