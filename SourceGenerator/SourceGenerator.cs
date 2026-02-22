@@ -26,9 +26,15 @@ namespace SevenBoldPencil.Profiler
 				new ProfilerDescription(typeof(AITaskManager), nameof(AITaskManager.Update)),
 				new ProfilerDescription(typeof(BotsClass), nameof(BotsClass.UpdateByUnity)),
 			};
+			var physicsProfilers = new List<ProfilerDescription>()
+			{
+				new ProfilerDescription(typeof(EFTPhysicsClass.SyncTransformsClass), nameof(EFTPhysicsClass.SyncTransformsClass.Update)),
+				new ProfilerDescription(typeof(EFTPhysicsClass.GClass745), nameof(EFTPhysicsClass.GClass745.Update)),
+			};
 
 			Generate_Profilers("MonoBehaviour", monoBehaviourProfilers);
 			Generate_Profilers("AI", aiProfilers);
+			Generate_Profilers("Physics", physicsProfilers);
 		}
 
 		public struct ProfilerDescription

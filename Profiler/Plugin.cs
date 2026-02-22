@@ -33,6 +33,7 @@ namespace SevenBoldPencil.Profiler {
 			{
 				Profilers_MonoBehaviour.GetProfilersGroup(),
 				Profilers_AI.GetProfilersGroup(),
+				Profilers_Physics.GetProfilersGroup(),
 			};
         }
 

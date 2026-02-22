@@ -22,19 +22,38 @@ namespace SevenBoldPencil.Profiler
 	}
 
 	// V type arg is used to generate different classes with same T type
-	// otherwise T.Method0 and T.Method1 will overwrite each other stopwatches
+	// otherwise methods T.MethodA and T.MethodB will overwrite each other stopwatches
 	public abstract class MethodProfiler<T, V> : ModulePatch, IProfiler
 	{
-		private readonly string _methodName;
-		private readonly string _fullName;
+		private static string _methodName;
+		private static string _fullName;
+		private static bool _isStaticMethod;
 
-		private static Dictionary<T, InstanceData> _instancesData = new();
+		private static Dictionary<T, InstanceData> _instancesData;
+		private static InstanceData _staticInstanceData;
 
 		public MethodProfiler(string methodName)
 		{
 			_methodName = methodName;
 			_fullName = $"{typeof(T).Name}.{methodName}";
 		}
+
+        protected override MethodBase GetTargetMethod()
+        {
+			var targetMethod = AccessTools.Method(typeof(T), _methodName);
+			_isStaticMethod = targetMethod.IsStatic;
+
+			if (_isStaticMethod)
+			{
+				_staticInstanceData = new();
+			}
+			else
+			{
+				_instancesData = new();
+			}
+
+            return targetMethod;
+        }
 
 		public void Init()
 		{
@@ -50,7 +69,8 @@ namespace SevenBoldPencil.Profiler
 		{
 			long sum = 0;
 			long count = 0;
-			foreach (var instanceData in _instancesData.Values)
+
+			void ProcessInstance(InstanceData instanceData)
 			{
 				if (!instanceData.IsRunning && time - instanceData.End <= validTime)
 				{
@@ -58,17 +78,25 @@ namespace SevenBoldPencil.Profiler
 					count += 1;
 				}
 			}
+
+			if (_isStaticMethod)
+			{
+				ProcessInstance(_staticInstanceData);
+			}
+			else
+			{
+				foreach (var instanceData in _instancesData.Values)
+				{
+					ProcessInstance(instanceData);
+				}
+			}
+
 			return (sum, count);
 		}
 
-        protected override MethodBase GetTargetMethod()
-        {
-            return AccessTools.Method(typeof(T), _methodName);
-        }
-
 		public static bool StartMeasure(T instance)
 		{
-			if (IsWrongType(instance))
+			if (!IsCorrectType(instance))
 			{
 				return true;
 			}
@@ -81,7 +109,7 @@ namespace SevenBoldPencil.Profiler
 
 		public static void StopMeasure(T instance)
 		{
-			if (IsWrongType(instance))
+			if (!IsCorrectType(instance))
 			{
 				return;
 			}
@@ -95,13 +123,17 @@ namespace SevenBoldPencil.Profiler
 		// and class B that inherits A,
 		// then instance of B will be tracked twice.
 		// this detects when tracker A receives instance of B
-		public static bool IsWrongType(T instance)
+		public static bool IsCorrectType(T instance)
 		{
-			return instance.GetType() != typeof(T);
+			return _isStaticMethod || instance.GetType() == typeof(T);
 		}
 
 		public static InstanceData GetInstanceData(T instance)
 		{
+			if (_isStaticMethod)
+			{
+				return _staticInstanceData;
+			}
 			if (_instancesData.TryGetValue(instance, out var instanceData))
 			{
 				return instanceData;
