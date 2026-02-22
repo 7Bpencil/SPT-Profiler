@@ -18,23 +18,41 @@ namespace SevenBoldPencil.Profiler
 	{
 		public static void Generate()
 		{
-			var monoBehaviourProfilers = GetMonoBehaviourProfilers();
-			var aiProfilers = new List<ProfilerDescription>()
+			var groups = new List<ProfilersGroupDescription>()
 			{
-				new ProfilerDescription(typeof(BotsController), nameof(BotsController.method_0)),
-				new ProfilerDescription(typeof(AICoreControllerClass), nameof(AICoreControllerClass.Update)),
-				new ProfilerDescription(typeof(AITaskManager), nameof(AITaskManager.Update)),
-				new ProfilerDescription(typeof(BotsClass), nameof(BotsClass.UpdateByUnity)),
+				new ProfilersGroupDescription()
+				{
+					Name = "MonoBehaviour",
+					Profilers = GetMonoBehaviourProfilers()
+				},
+				new ProfilersGroupDescription()
+				{
+					Name = "AI",
+					Profilers = new List<ProfilerDescription>()
+					{
+						new ProfilerDescription(typeof(BotsController), nameof(BotsController.method_0)),
+						new ProfilerDescription(typeof(AICoreControllerClass), nameof(AICoreControllerClass.Update)),
+						new ProfilerDescription(typeof(AITaskManager), nameof(AITaskManager.Update)),
+						new ProfilerDescription(typeof(BotsClass), nameof(BotsClass.UpdateByUnity)),
+					}
+				},
+				new ProfilersGroupDescription()
+				{
+					Name = "Physics",
+					Profilers = new List<ProfilerDescription>()
+					{
+						new ProfilerDescription(typeof(EFTPhysicsClass.SyncTransformsClass), nameof(EFTPhysicsClass.SyncTransformsClass.Update)),
+						new ProfilerDescription(typeof(EFTPhysicsClass.GClass745), nameof(EFTPhysicsClass.GClass745.Update)),
+					}
+				},
 			};
-			var physicsProfilers = new List<ProfilerDescription>()
-			{
-				new ProfilerDescription(typeof(EFTPhysicsClass.SyncTransformsClass), nameof(EFTPhysicsClass.SyncTransformsClass.Update)),
-				new ProfilerDescription(typeof(EFTPhysicsClass.GClass745), nameof(EFTPhysicsClass.GClass745.Update)),
-			};
+			GenerateSourceCode(groups);
+		}
 
-			Generate_Profilers("MonoBehaviour", monoBehaviourProfilers);
-			Generate_Profilers("AI", aiProfilers);
-			Generate_Profilers("Physics", physicsProfilers);
+		public struct ProfilersGroupDescription
+		{
+			public string Name;
+			public List<ProfilerDescription> Profilers;
 		}
 
 		public struct ProfilerDescription
@@ -99,9 +117,10 @@ namespace SevenBoldPencil.Profiler
 			return resultDescriptions;
 		}
 
-		public static void Generate_Profilers(string groupName, List<ProfilerDescription> descriptions)
+		public static void GenerateSourceCode(List<ProfilersGroupDescription> groups)
 		{
 			var builder = new StringBuilder();
+
 			builder.AppendLine(@"using Comfort.Common;");
 			builder.AppendLine(@"using SPT.Reflection.Patching;");
 			builder.AppendLine(@"using System;");
@@ -114,40 +133,59 @@ namespace SevenBoldPencil.Profiler
 
 			builder.AppendLine(@"namespace SevenBoldPencil.Profiler");
 			builder.AppendLine(@"{");
-			builder.AppendLine($"    public static class Profilers_{groupName}");
+
+			builder.AppendLine($"    public static class Profilers");
+			builder.AppendLine(@"    {");
+			builder.AppendLine(@"        public static List<ProfilersGroup> GetGroups()");
+			builder.AppendLine(@"        {");
+			builder.AppendLine($"            var groups = new List<ProfilersGroup>({groups.Count})");
+			builder.AppendLine(@"            {");
+		foreach (var group in groups)
+		{
+			builder.AppendLine($"                _Generated_Profilers_{group.Name}.GetProfilersGroup(),");
+		}
+			builder.AppendLine(@"            };");
+			builder.AppendLine(@"            return groups;");
+			builder.AppendLine(@"        }");
+			builder.AppendLine(@"    }");
+
+		foreach (var group in groups)
+		{
+			builder.AppendLine($"    public static class _Generated_Profilers_{group.Name}");
 			builder.AppendLine(@"    {");
 			builder.AppendLine(@"        public static ProfilersGroup GetProfilersGroup()");
 			builder.AppendLine(@"        {");
-			builder.AppendLine($"            var profilers = new List<IProfiler>({descriptions.Count})");
+			builder.AppendLine($"            var profilers = new List<IProfiler>({group.Profilers.Count})");
 			builder.AppendLine(@"            {");
-		foreach (var description in descriptions)
+		foreach (var description in group.Profilers)
 		{
-			builder.AppendLine($"                new Measure_{description.ProfilerName}(),");
+			builder.AppendLine($"                new _Measure_{description.ProfilerName}(),");
 		}
 			builder.AppendLine(@"            };");
-			builder.AppendLine($"            var profilersGroup = new ProfilersGroup(\"{groupName}\", profilers);");
+			builder.AppendLine($"            var profilersGroup = new ProfilersGroup(\"{group.Name}\", profilers);");
 			builder.AppendLine(@"            return profilersGroup;");
 			builder.AppendLine(@"        }");
 			builder.AppendLine(@"    }");
-		foreach (var description in descriptions)
+
+		foreach (var description in group.Profilers)
 		{
 			var patchMethodSignature = string.IsNullOrWhiteSpace(description.MethodSignature)
 				? $"{description.TypeName} __instance"
 				: $"{description.TypeName} __instance, {description.MethodSignature}";
 
-			builder.AppendLine($"    public class Dummy_{description.ProfilerName} {{ }}");
-			builder.AppendLine($"    public class Measure_{description.ProfilerName} : MethodProfiler<{description.TypeName}, Dummy_{description.ProfilerName}>");
+			builder.AppendLine($"    public class _Dummy_{description.ProfilerName} {{ }}");
+			builder.AppendLine($"    public class _Measure_{description.ProfilerName} : MethodProfiler<{description.TypeName}, _Dummy_{description.ProfilerName}>");
 			builder.AppendLine(@"    {");
-			builder.AppendLine($"        public Measure_{description.ProfilerName}() : base(\"{description.MethodName}\") {{ }}");
+			builder.AppendLine($"        public _Measure_{description.ProfilerName}() : base(\"{description.MethodName}\") {{ }}");
 			builder.AppendLine($"        [PatchPrefix] public static bool Prefix({patchMethodSignature}) {{ return StartMeasure(__instance); }}");
 			builder.AppendLine($"        [PatchPostfix] public static void Postfix({patchMethodSignature}) {{ StopMeasure(__instance); }}");
 			builder.AppendLine(@"    }");
 		}
+		}
 			builder.AppendLine(@"}");
 
 			var result = builder.ToString();
-			File.WriteAllText($"Development/SPT-Profiler/Profiler/Profilers_{groupName}.g.cs", result);
+			File.WriteAllText($"Development/SPT-Profiler/Profiler/Generated.g.cs", result);
 		}
-
 	}
 }

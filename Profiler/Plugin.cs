@@ -29,13 +29,7 @@ namespace SevenBoldPencil.Profiler {
 
             Instance = this;
 			LoggerInstance = Logger;
-
-			profilersGroups = new List<ProfilersGroup>(2)
-			{
-				Profilers_MonoBehaviour.GetProfilersGroup(),
-				Profilers_AI.GetProfilersGroup(),
-				Profilers_Physics.GetProfilersGroup(),
-			};
+			profilersGroups = Profilers.GetGroups();
         }
 
 		public void Update()
