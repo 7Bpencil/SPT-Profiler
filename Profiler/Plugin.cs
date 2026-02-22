@@ -6,6 +6,7 @@ using UnityEngine;
 using System.Collections.Generic;
 
 namespace SevenBoldPencil.Profiler {
+	[DefaultExecutionOrder(int.MaxValue)]
     [BepInPlugin("7Bpencil.Profiler", "7Bpencil.Profiler", "1.0.0")]
     public class Plugin : BaseUnityPlugin {
         public static Plugin Instance;
@@ -49,24 +50,33 @@ namespace SevenBoldPencil.Profiler {
 			}
 		}
 
-		public void OnGUI()
-        {
-			if (!isProfilerWindowVisible)
+		public void LateUpdate()
+		{
+			if (isProfilerWindowVisible && isProfilerRecording)
 			{
-				return;
-			}
-			if (isProfilerRecording)
-			{
-				var currentTime = Stopwatch.GetTimestamp();
 				foreach (var profilersGroup in profilersGroups)
 				{
-					profilersGroup.CollectMeasurements(currentTime);
+					profilersGroup.CollectMeasurements();
 				}
 			}
-			for (var i = 0; i < profilersGroups.Count; i++)
+			else
 			{
-				var profilersGroup = profilersGroups[i];
-				profilersGroup.DrawWindow(i);
+				foreach (var profilersGroup in profilersGroups)
+				{
+					profilersGroup.ClearMeasurements();
+				}
+			}
+		}
+
+		public void OnGUI()
+        {
+			if (isProfilerWindowVisible)
+			{
+				for (var i = 0; i < profilersGroups.Count; i++)
+				{
+					var profilersGroup = profilersGroups[i];
+					profilersGroup.DrawWindow(i);
+				}
 			}
         }
     }
@@ -77,7 +87,7 @@ namespace SevenBoldPencil.Profiler {
 		{
 			public string Name;
 			public double TimeMs;
-			public long Instances;
+			public long Calls;
 		}
 
 		private string name;
@@ -105,30 +115,37 @@ namespace SevenBoldPencil.Profiler {
 			}
 		}
 
-		public void CollectMeasurements(long currentTime)
+		public void CollectMeasurements()
 		{
-			var validTime = GetTicksFromMilliseconds(100);
-
 			measurements.Clear();
+
 			foreach (var profiler in profilers)
 			{
-				var name = profiler.GetName();
-				var (duration, instances) = profiler.GetDuration(currentTime, validTime);
-				if (duration == 0)
+				var (totalDuration, calls) = profiler.CollectMeasurements();
+				if (totalDuration == 0)
 				{
 					continue;
 				}
 
-				var timeMs = GetDurationMilliseconds(duration);
+				var name = profiler.GetName();
+				var timeMs = GetDurationMilliseconds(totalDuration);
 				measurements.Add(new Measurement()
 				{
 					Name = name,
 					TimeMs = timeMs,
-					Instances = instances,
+					Calls = calls,
 				});
 			}
 
 			measurements.Sort((a, b) => b.TimeMs.CompareTo(a.TimeMs));
+		}
+
+		public void ClearMeasurements()
+		{
+			foreach (var profiler in profilers)
+			{
+				var _ = profiler.CollectMeasurements();
+			}
 		}
 
 		public static double GetDurationSeconds(long durationTicks)
@@ -177,7 +194,7 @@ namespace SevenBoldPencil.Profiler {
 			for (var i = 0; i < visibleAmount; i++)
 			{
 				var measurement = measurements[i];
-				var text = $"{measurement.TimeMs:0.0000} ms | {measurement.Instances} | {measurement.Name}";
+				var text = $"{measurement.TimeMs:0.0000} ms | {measurement.Calls} | {measurement.Name}";
 				var rect = new Rect(x, y, windowWidth, height);
 				GUI.Label(rect, text);
 				y += height + separatorY;

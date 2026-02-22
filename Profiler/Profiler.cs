@@ -3,6 +3,7 @@ using SPT.Reflection.Patching;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using System.Threading;
 using HarmonyLib;
 
 namespace SevenBoldPencil.Profiler
@@ -11,14 +12,20 @@ namespace SevenBoldPencil.Profiler
 	{
 		public void Init();
 		public string GetName();
-		public (long sumDuration, long instances) GetDuration(long time, long validTime);
+		public (long totalDuration, long calls) CollectMeasurements();
 	}
 
 	public class InstanceData
 	{
-		public bool IsRunning;
+		public List<RunningMethod> RunningMethods = new(1);
+		public long TotalDuration;
+		public long Calls;
+	}
+
+	public struct RunningMethod
+	{
 		public long Start;
-		public long End;
+		public int ThreadId;
 	}
 
 	// V type arg is used to generate different classes with same T type
@@ -28,9 +35,8 @@ namespace SevenBoldPencil.Profiler
 		private static string _methodName;
 		private static string _fullName;
 		private static bool _isStaticMethod;
-
-		private static Dictionary<T, InstanceData> _instancesData;
 		private static InstanceData _staticInstanceData;
+		private static Dictionary<T, InstanceData> _instancesData;
 
 		public MethodProfiler(string methodName)
 		{
@@ -65,33 +71,33 @@ namespace SevenBoldPencil.Profiler
 			return _fullName;
 		}
 
-		public (long sumDuration, long instances) GetDuration(long time, long validTime)
+		public (long totalDuration, long calls) CollectMeasurements()
 		{
-			long sum = 0;
-			long count = 0;
-
-			void ProcessInstance(InstanceData instanceData)
-			{
-				if (!instanceData.IsRunning && time - instanceData.End <= validTime)
-				{
-					sum += instanceData.End - instanceData.Start;
-					count += 1;
-				}
-			}
+			long totalDuration = 0;
+			long calls = 0;
 
 			if (_isStaticMethod)
 			{
-				ProcessInstance(_staticInstanceData);
+				ProcessInstance(_staticInstanceData, ref totalDuration, ref calls);
 			}
 			else
 			{
 				foreach (var instanceData in _instancesData.Values)
 				{
-					ProcessInstance(instanceData);
+					ProcessInstance(instanceData, ref totalDuration, ref calls);
 				}
 			}
 
-			return (sum, count);
+			return (totalDuration, calls);
+		}
+
+		private static void ProcessInstance(InstanceData instanceData, ref long totalDuration, ref long calls)
+		{
+			totalDuration += instanceData.TotalDuration;
+			calls += instanceData.Calls;
+
+			instanceData.TotalDuration = 0;
+			instanceData.Calls = 0;
 		}
 
 		public static bool StartMeasure(T instance)
@@ -102,8 +108,15 @@ namespace SevenBoldPencil.Profiler
 			}
 
 			var instanceData = GetInstanceData(instance);
-			instanceData.IsRunning = true;
-			instanceData.Start = Stopwatch.GetTimestamp();
+			var runningMethods = instanceData.RunningMethods;
+			var threadId = Thread.CurrentThread.ManagedThreadId;
+
+			runningMethods.Add(new RunningMethod()
+			{
+				Start = Stopwatch.GetTimestamp(),
+				ThreadId = threadId,
+			});
+
 			return true;
 		}
 
@@ -115,9 +128,32 @@ namespace SevenBoldPencil.Profiler
 			}
 
 			var instanceData = GetInstanceData(instance);
-			instanceData.IsRunning = false;
-			instanceData.End = Stopwatch.GetTimestamp();
+			var runningMethods = instanceData.RunningMethods;
+			var threadId = Thread.CurrentThread.ManagedThreadId;
+
+			for (var i = 0; i < runningMethods.Count; i++)
+			{
+				var runningMethod = runningMethods[i];
+				if (runningMethod.ThreadId == threadId)
+				{
+					var runningMethodEnd = Stopwatch.GetTimestamp();
+					instanceData.TotalDuration += runningMethodEnd - runningMethod.Start;
+					instanceData.Calls += 1;
+					SwapRemove(runningMethods, i);
+					break;
+				}
+			}
 		}
+
+	    public static void SwapRemove<R>(List<R> list, int index)
+	    {
+			var lastIndex = list.Count - 1;
+			if (index != lastIndex)
+			{
+		        list[index] = list[lastIndex];
+			}
+	        list.RemoveAt(lastIndex);
+	    }
 
 		// if we have class A with virtual method
 		// and class B that inherits A,
