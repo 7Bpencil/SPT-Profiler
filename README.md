@@ -1,6 +1,8 @@
 ![](preview/preview.png)
 
-Simple profiler that measures every Update, LateUpdate, FixedUpdate in Assembly-CSharp.<br>
+Simple profiler that measures specified methods.<br>
+Out of the box configured to measure Update, LateUpdate, FixedUpdate on every MonoBehaviour in Assembly-CSharp.<br>
+Check `SourceGenerator.cs` to learn how to track methods you are interested in.<br>
 
 ### Installation
 

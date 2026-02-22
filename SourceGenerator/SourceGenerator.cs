@@ -22,7 +22,6 @@ namespace SevenBoldPencil.Profiler
 			{
 				new ProfilerDescription(typeof(BotsController), nameof(BotsController.method_0)),
 				new ProfilerDescription(typeof(AICoreControllerClass), nameof(AICoreControllerClass.Update)),
-				new ProfilerDescription(typeof(BotsSmokesVisionSystem), nameof(BotsSmokesVisionSystem.Update)),
 				new ProfilerDescription(typeof(AITaskManager), nameof(AITaskManager.Update)),
 				new ProfilerDescription(typeof(BotsClass), nameof(BotsClass.UpdateByUnity)),
 			});
