@@ -18,14 +18,17 @@ namespace SevenBoldPencil.Profiler
 	{
 		public static void Generate()
 		{
-			Generate_Profilers("AI", new List<ProfilerDescription>()
+			var monoBehaviourProfilers = GetMonoBehaviourProfilers();
+			var aiProfilers = new List<ProfilerDescription>()
 			{
 				new ProfilerDescription(typeof(BotsController), nameof(BotsController.method_0)),
 				new ProfilerDescription(typeof(AICoreControllerClass), nameof(AICoreControllerClass.Update)),
 				new ProfilerDescription(typeof(AITaskManager), nameof(AITaskManager.Update)),
 				new ProfilerDescription(typeof(BotsClass), nameof(BotsClass.UpdateByUnity)),
-			});
-			Generate_Profilers_MonoBehaviour();
+			};
+
+			Generate_Profilers("MonoBehaviour", monoBehaviourProfilers);
+			Generate_Profilers("AI", aiProfilers);
 		}
 
 		public struct ProfilerDescription
@@ -50,7 +53,7 @@ namespace SevenBoldPencil.Profiler
 			}
 		}
 
-		public static void Generate_Profilers_MonoBehaviour()
+		public static List<ProfilerDescription> GetMonoBehaviourProfilers()
 		{
 			var assemblies = AppDomain.CurrentDomain.GetAssemblies();
 			var assemblyName = "Assembly-CSharp";
@@ -87,7 +90,7 @@ namespace SevenBoldPencil.Profiler
 				}
 			}
 
-			Generate_Profilers("MonoBehaviour", resultDescriptions);
+			return resultDescriptions;
 		}
 
 		public static void Generate_Profilers(string groupName, List<ProfilerDescription> descriptions)
