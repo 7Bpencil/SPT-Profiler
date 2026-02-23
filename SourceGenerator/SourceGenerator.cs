@@ -177,8 +177,8 @@ namespace SevenBoldPencil.Profiler
 			builder.AppendLine($"    public class _Measure_{description.ProfilerName} : MethodProfiler<{description.TypeName}, _Dummy_{description.ProfilerName}>");
 			builder.AppendLine(@"    {");
 			builder.AppendLine($"        public _Measure_{description.ProfilerName}() : base(\"{description.MethodName}\") {{ }}");
-			builder.AppendLine($"        [PatchPrefix] public static bool Prefix({patchMethodSignature}) {{ return StartMeasure(__instance); }}");
-			builder.AppendLine($"        [PatchPostfix] public static void Postfix({patchMethodSignature}) {{ StopMeasure(__instance); }}");
+			builder.AppendLine($"        [PatchPrefix] [HarmonyPriority(int.MaxValue)] public static void Prefix({patchMethodSignature}) {{ StartMeasure(__instance); }}");
+			builder.AppendLine($"        [PatchPostfix] [HarmonyPriority(int.MinValue)] public static void Postfix({patchMethodSignature}) {{ StopMeasure(__instance); }}");
 			builder.AppendLine(@"    }");
 		}
 		}

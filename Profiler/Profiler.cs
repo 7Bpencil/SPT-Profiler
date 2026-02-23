@@ -100,11 +100,11 @@ namespace SevenBoldPencil.Profiler
 			instanceData.Calls = 0;
 		}
 
-		public static bool StartMeasure(T instance)
+		public static void StartMeasure(T instance)
 		{
 			if (!IsCorrectType(instance))
 			{
-				return true;
+				return;
 			}
 
 			var instanceData = GetInstanceData(instance);
@@ -116,8 +116,6 @@ namespace SevenBoldPencil.Profiler
 				Start = Stopwatch.GetTimestamp(),
 				ThreadId = threadId,
 			});
-
-			return true;
 		}
 
 		public static void StopMeasure(T instance)
